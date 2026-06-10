@@ -26,7 +26,8 @@ def _shop_query(where=None):
     return q
 
 
-def _build_shop_out(shop: Shop) -> ShopOut:
+def _build_shop_out(shop: Shop, user: User | None = None) -> ShopOut:
+    uid = user.id if user else None
     return ShopOut(
         id=shop.id,
         name=shop.name,
@@ -45,6 +46,8 @@ def _build_shop_out(shop: Shop) -> ShopOut:
         photo_urls=[p.url for p in shop.photos],
         checkin_count=len(shop.checkins),
         favorite_count=len(shop.favorites),
+        is_checked_in=any(c.user_id == uid for c in shop.checkins) if uid else False,
+        is_favorited=any(f.user_id == uid for f in shop.favorites) if uid else False,
     )
 
 
@@ -146,12 +149,16 @@ async def retry_geocode(
 
 
 @router.get("/{shop_id}", response_model=ShopOut)
-async def get_shop(shop_id: int, db: AsyncSession = Depends(get_db)):
+async def get_shop(
+    shop_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_optional_user),
+):
     result = await db.execute(_shop_query(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
         raise HTTPException(404, "Shop not found")
-    return _build_shop_out(shop)
+    return _build_shop_out(shop, user)
 
 
 @router.patch("/{shop_id}", response_model=ShopOut)
@@ -210,12 +217,18 @@ async def toggle_favorite(
     return {"favorited": True}
 
 
-@router.post("/{shop_id}/checkin", status_code=201)
-async def checkin(
+@router.post("/{shop_id}/checkin", status_code=200)
+async def toggle_checkin(
     shop_id: int,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    result = await db.execute(select(Checkin).where(Checkin.user_id == user.id, Checkin.shop_id == shop_id))
+    existing = result.scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"checked_in": False}
     db.add(Checkin(user_id=user.id, shop_id=shop_id))
     await db.commit()
     return {"checked_in": True}

@@ -20,6 +20,7 @@ class Favorite(Base):
 
 class Checkin(Base):
     __tablename__ = "checkins"
+    __table_args__ = (UniqueConstraint("user_id", "shop_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

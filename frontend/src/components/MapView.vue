@@ -65,6 +65,10 @@ function initMap() {
     zoom: 14,
     mapStyle: 'amap://styles/macaron',
   })
+  map.on('click', () => {
+    shopsStore.selectedShop = null
+    clusterPopup.visible = false
+  })
   renderMarkers()
 }
 

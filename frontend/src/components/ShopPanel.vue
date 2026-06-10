@@ -67,12 +67,18 @@
         <div v-if="authStore.user" class="flex gap-2">
           <button
             @click="favorite"
-            class="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition"
-          >收藏</button>
+            class="flex-1 py-2 rounded-lg border text-sm transition"
+            :class="shop.is_favorited
+              ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100'
+              : 'border-gray-200 text-gray-600 hover:bg-gray-50'"
+          >{{ shop.is_favorited ? '❤️ 已收藏' : '收藏' }}</button>
           <button
             @click="checkin"
-            class="flex-1 py-2 rounded-lg border border-amber-200 text-sm text-amber-600 hover:bg-amber-50 transition"
-          >打卡</button>
+            class="flex-1 py-2 rounded-lg border text-sm transition"
+            :class="shop.is_checked_in
+              ? 'border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100'
+              : 'border-amber-200 text-amber-600 hover:bg-amber-50'"
+          >{{ shop.is_checked_in ? '📍 已打卡' : '打卡' }}</button>
         </div>
 
         <!-- Reviews -->

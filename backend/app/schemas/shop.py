@@ -43,6 +43,8 @@ class ShopOut(BaseModel):
     photo_urls: list[str] = []
     checkin_count: int = 0
     favorite_count: int = 0
+    is_checked_in: bool = False
+    is_favorited: bool = False
 
     model_config = {"from_attributes": True}
 
