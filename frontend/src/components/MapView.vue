@@ -208,7 +208,7 @@ function locateUser() {
       })
       map.add(locationMarker)
     },
-    () => {},
+    (err) => { console.warn('定位失败:', err.message) },
     { enableHighAccuracy: true, timeout: 8000 },
   )
 }
