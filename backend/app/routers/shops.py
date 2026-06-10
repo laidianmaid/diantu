@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.shop import Shop, ShopPhoto, ShopStatus
@@ -12,6 +13,17 @@ from app.services.markdown_import import parse_markdown_table
 from app.services.geocoding import geocode_address
 
 router = APIRouter(prefix="/shops", tags=["shops"])
+
+
+def _shop_query(where=None):
+    q = select(Shop).options(
+        selectinload(Shop.photos),
+        selectinload(Shop.checkins),
+        selectinload(Shop.favorites),
+    )
+    if where is not None:
+        q = q.where(where)
+    return q
 
 
 def _build_shop_out(shop: Shop) -> ShopOut:
@@ -109,7 +121,8 @@ async def create_shop(
     db.add(shop)
     await db.commit()
     await db.refresh(shop)
-    return _build_shop_out(shop)
+    result = await db.execute(_shop_query(Shop.id == shop.id))
+    return _build_shop_out(result.scalar_one())
 
 
 @router.post("/{shop_id}/geocode", tags=["admin"])
@@ -134,7 +147,7 @@ async def retry_geocode(
 
 @router.get("/{shop_id}", response_model=ShopOut)
 async def get_shop(shop_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    result = await db.execute(_shop_query(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
         raise HTTPException(404, "Shop not found")
@@ -148,7 +161,7 @@ async def update_shop(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    result = await db.execute(_shop_query(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
         raise HTTPException(404, "Shop not found")
@@ -162,8 +175,8 @@ async def update_shop(
     for k, v in data.items():
         setattr(shop, k, v)
     await db.commit()
-    await db.refresh(shop)
-    return _build_shop_out(shop)
+    result = await db.execute(_shop_query(Shop.id == shop_id))
+    return _build_shop_out(result.scalar_one())
 
 
 @router.delete("/{shop_id}", status_code=204)

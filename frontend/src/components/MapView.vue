@@ -63,7 +63,7 @@ function initMap() {
   map = new window.AMap.Map(mapContainer.value, {
     center: [121.473701, 31.230416],
     zoom: 14,
-    mapStyle: 'amap://styles/light',
+    mapStyle: 'amap://styles/macaron',
   })
   renderMarkers()
 }
