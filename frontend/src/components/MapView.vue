@@ -189,28 +189,42 @@ function selectFromCluster(id) {
 let locationMarker = null
 
 function locateUser() {
-  if (!navigator.geolocation) return
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      if (!map) return
-      const { longitude, latitude } = pos.coords
-      map.setCenter([longitude, latitude])
-      map.setZoom(15)
-      if (locationMarker) map.remove(locationMarker)
-      locationMarker = new window.AMap.CircleMarker({
-        center: [longitude, latitude],
-        radius: 8,
-        strokeColor: '#fff',
-        strokeWeight: 2,
-        fillColor: '#3b82f6',
-        fillOpacity: 1,
-        zIndex: 200,
-      })
-      map.add(locationMarker)
-    },
-    (err) => { console.warn('定位失败:', err.message) },
-    { enableHighAccuracy: true, timeout: 8000 },
-  )
+  if (!map || !window.AMap) return
+
+  // 加载定位插件
+  window.AMap.plugin('AMap.Geolocation', function() {
+    const geolocation = new window.AMap.Geolocation({
+      enableHighAccuracy: true, // 设置为高精度定位
+      timeout: 8000,            // 超过8秒后停止定位
+      showButton: false,        // 不显示默认的定位按钮
+      showMarker: false,        // 不显示默认的定位点
+      showCircle: false,        // 不显示默认的定位精度圈
+    })
+
+    geolocation.getCurrentPosition(function(status, result) {
+      if (status === 'complete') {
+        // 获取正确的 GCJ-02 经纬度
+        const { lng, lat } = result.position
+
+        map.setCenter([lng, lat])
+        map.setZoom(15)
+
+        if (locationMarker) map.remove(locationMarker)
+        locationMarker = new window.AMap.CircleMarker({
+          center: [lng, lat],
+          radius: 8,
+          strokeColor: '#fff',
+          strokeWeight: 2,
+          fillColor: '#3b82f6',
+          fillOpacity: 1,
+          zIndex: 200,
+        })
+        map.add(locationMarker)
+      } else {
+        console.warn('定位失败:', result.message)
+      }
+    })
+  })
 }
 
 onMounted(async () => {
