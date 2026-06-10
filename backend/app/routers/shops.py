@@ -44,6 +44,9 @@ async def import_markdown(
 ):
     content = (await file.read()).decode("utf-8")
     parse = parse_markdown_table(content)
+
+    # 串行地理编码：稳定优先，每条 200ms 间隔，QPS 超限自动退避重试
+    # 220 条约 44 秒，导入一次性操作可以接受
     created, updated = 0, 0
     geocode_failed = []
     for row in parse.rows:
@@ -107,6 +110,26 @@ async def create_shop(
     await db.commit()
     await db.refresh(shop)
     return _build_shop_out(shop)
+
+
+@router.post("/{shop_id}/geocode", tags=["admin"])
+async def retry_geocode(
+    shop_id: int,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise HTTPException(404, "Shop not found")
+    if not shop.address:
+        raise HTTPException(400, "Shop has no address")
+    coords = await geocode_address(shop.address)
+    if not coords:
+        raise HTTPException(422, f"高德无法解析地址：{shop.address}")
+    shop.lat, shop.lng = coords
+    await db.commit()
+    return {"lat": shop.lat, "lng": shop.lng}
 
 
 @router.get("/{shop_id}", response_model=ShopOut)
