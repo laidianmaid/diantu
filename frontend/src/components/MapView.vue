@@ -1,15 +1,36 @@
 <template>
   <div ref="mapContainer" class="w-full h-full" />
+
+  <!-- 同坐标多店弹出列表 -->
+  <Teleport to="body">
+    <div
+      v-if="clusterPopup.visible"
+      class="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 py-2 min-w-48 max-w-64"
+      :style="{ left: clusterPopup.x + 'px', top: clusterPopup.y + 'px' }"
+    >
+      <p class="text-xs text-gray-400 px-3 pb-1 border-b border-gray-100">{{ clusterPopup.shops.length }} 家店铺</p>
+      <button
+        v-for="s in clusterPopup.shops"
+        :key="s.id"
+        @click="selectFromCluster(s.id)"
+        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 flex items-center gap-2 transition"
+      >
+        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${COLOR_HEX[s.color] || '#6b7280'}`" />
+        {{ s.name }}
+      </button>
+    </div>
+    <div v-if="clusterPopup.visible" class="fixed inset-0 z-40" @click="clusterPopup.visible = false" />
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { useShopsStore } from '../stores/shops'
 
 const mapContainer = ref(null)
 const shopsStore = useShopsStore()
 let map = null
-let markers = {}
+let mapObjects = []  // 所有添加到地图的对象
 
 const COLOR_HEX = {
   sagegreen: '#8FBC8F',
@@ -19,6 +40,8 @@ const COLOR_HEX = {
   hotpink:   '#FF69B4',
 }
 
+const clusterPopup = reactive({ visible: false, x: 0, y: 0, shops: [] })
+
 function loadAmapScript() {
   return new Promise((resolve, reject) => {
     if (window.AMap) return resolve()
@@ -27,7 +50,6 @@ function loadAmapScript() {
       console.warn('VITE_AMAP_JS_KEY 未配置，地图不加载')
       return resolve()
     }
-    // _AMapSecurityConfig.serviceHost 在 index.html 中已配置，jscode 由后端代理注入
     const s = document.createElement('script')
     s.src = `https://webapi.amap.com/maps?v=2.0&key=${key}`
     s.onload = resolve
@@ -46,36 +68,113 @@ function initMap() {
   renderMarkers()
 }
 
+// 把坐标精度截断到小数点后4位（约11米），相当于"同一栋楼"
+function coordKey(lat, lng) {
+  return `${parseFloat(lat).toFixed(4)},${parseFloat(lng).toFixed(4)}`
+}
+
 function renderMarkers() {
   if (!map) return
-  // Clear old markers
-  Object.values(markers).forEach(m => map.remove(m))
-  markers = {}
+  map.remove(mapObjects)
+  mapObjects = []
+  clusterPopup.visible = false
 
+  const highlightSet = new Set(shopsStore.highlightedIds)
+  const hasFilter = highlightSet.size > 0
+
+  // 按坐标分组
+  const groups = new Map()
   shopsStore.shops.forEach(shop => {
     if (!shop.lat || !shop.lng) return
-    const isHighlighted = shopsStore.highlightedIds.length === 0 || shopsStore.highlightedIds.includes(shop.id)
-    const color = COLOR_HEX[shop.color] || '#6b7280'
+    const key = coordKey(shop.lat, shop.lng)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(shop)
+  })
+
+  groups.forEach((shops, key) => {
+    const [lat, lng] = key.split(',').map(Number)
+    const isMulti = shops.length > 1
+    const isHighlighted = !hasFilter || shops.some(s => highlightSet.has(s.id))
+
+    // 多店聚合时取主色（众数）
+    const colorCount = {}
+    shops.forEach(s => { colorCount[s.color] = (colorCount[s.color] || 0) + 1 })
+    const mainColor = Object.entries(colorCount).sort((a, b) => b[1] - a[1])[0][0]
+    const fillColor = COLOR_HEX[mainColor] || '#6b7280'
+
+    const radius = isMulti ? 13 : (isHighlighted ? 10 : 7)
     const circle = new window.AMap.CircleMarker({
-      center: [shop.lng, shop.lat],
-      radius: isHighlighted ? 10 : 7,
-      strokeColor: '#fff',
+      center: [lng, lat],
+      radius,
+      strokeColor: isMulti ? '#fff' : '#fff',
       strokeWeight: 2,
-      fillColor: color,
-      fillOpacity: isHighlighted ? 1 : 0.4,
+      fillColor,
+      fillOpacity: isHighlighted ? 1 : 0.35,
       zIndex: isHighlighted ? 120 : 100,
       cursor: 'pointer',
     })
-    circle.on('click', () => shopsStore.selectShop(shop.id))
-    const label = new window.AMap.Text({
-      text: shop.name,
-      position: [shop.lng, shop.lat],
-      offset: new window.AMap.Pixel(14, -8),
-      style: { background: 'transparent', border: 'none', fontSize: '12px', color: '#1f2937' },
+
+    circle.on('click', (e) => {
+      if (isMulti) {
+        // 弹出店铺列表
+        const pixel = map.lngLatToContainer([lng, lat])
+        const rect = mapContainer.value.getBoundingClientRect()
+        clusterPopup.x = rect.left + pixel.x + 16
+        clusterPopup.y = rect.top + pixel.y - 8
+        clusterPopup.shops = shops
+        clusterPopup.visible = true
+      } else {
+        shopsStore.selectShop(shops[0].id)
+      }
     })
-    map.add([circle, label])
-    markers[shop.id] = circle
+
+    mapObjects.push(circle)
+    map.add(circle)
+
+    // 数字角标（多店时显示）
+    if (isMulti) {
+      const badge = new window.AMap.Text({
+        text: String(shops.length),
+        position: [lng, lat],
+        offset: new window.AMap.Pixel(0, 0),
+        anchor: 'center',
+        style: {
+          background: 'transparent',
+          border: 'none',
+          fontSize: '10px',
+          fontWeight: 'bold',
+          color: '#fff',
+          pointerEvents: 'none',
+        },
+      })
+      mapObjects.push(badge)
+      map.add(badge)
+    }
+
+    // 单店名称标签（只在高亮或无筛选时显示）
+    if (!isMulti && isHighlighted) {
+      const label = new window.AMap.Text({
+        text: shops[0].name,
+        position: [lng, lat],
+        offset: new window.AMap.Pixel(14, -8),
+        style: {
+          background: 'transparent',
+          border: 'none',
+          fontSize: '11px',
+          color: '#1f2937',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        },
+      })
+      mapObjects.push(label)
+      map.add(label)
+    }
   })
+}
+
+function selectFromCluster(id) {
+  clusterPopup.visible = false
+  shopsStore.selectShop(id)
 }
 
 onMounted(async () => {
