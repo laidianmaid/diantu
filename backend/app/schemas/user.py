@@ -11,7 +11,7 @@ class UserRegister(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str  # 登录时不做邮箱格式校验，直接匹配数据库
     password: str
 
 

@@ -43,12 +43,15 @@ async def import_markdown(
     db: AsyncSession = Depends(get_db),
 ):
     content = (await file.read()).decode("utf-8")
-    rows = parse_markdown_table(content)
+    parse = parse_markdown_table(content)
     created, updated = 0, 0
-    for row in rows:
+    geocode_failed = []
+    for row in parse.rows:
         result = await db.execute(select(Shop).where(Shop.name == row["name"]))
         shop = result.scalar_one_or_none()
-        coords = await geocode_address(row["address"])
+        coords = await geocode_address(row["address"]) if row["address"] else None
+        if coords is None and row["address"]:
+            geocode_failed.append(row["name"])
         if shop:
             shop.color = row["color"]
             shop.address = row["address"]
@@ -62,7 +65,14 @@ async def import_markdown(
             db.add(shop)
             created += 1
     await db.commit()
-    return {"created": created, "updated": updated, "total": len(rows)}
+    return {
+        "created": created,
+        "updated": updated,
+        "skipped": len(parse.warnings),
+        "total_parsed": len(parse.rows),
+        "warnings": [str(w) for w in parse.warnings],
+        "geocode_failed": geocode_failed,
+    }
 
 
 @router.get("", response_model=list[ShopListOut])

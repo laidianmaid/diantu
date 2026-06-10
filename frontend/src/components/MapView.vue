@@ -12,9 +12,11 @@ let map = null
 let markers = {}
 
 const COLOR_HEX = {
-  red: '#ef4444', green: '#22c55e', yellow: '#eab308', blue: '#3b82f6',
-  purple: '#a855f7', orange: '#f97316', pink: '#ec4899', black: '#1f2937',
-  white: '#f9fafb', gray: '#6b7280',
+  sagegreen: '#8FBC8F',
+  olivedrab: '#6B8E23',
+  seagreen:  '#2E8B57',
+  salmon:    '#FA8072',
+  hotpink:   '#FF69B4',
 }
 
 function loadAmapScript() {

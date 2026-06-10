@@ -8,7 +8,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE || 'http://localhost:8000',
+        target: process.env.VITE_API_BASE || 'http://backend:8000',
+        changeOrigin: true,
+      },
+      '/_AMapService': {
+        target: process.env.VITE_API_BASE || 'http://backend:8000',
         changeOrigin: true,
       },
     },
