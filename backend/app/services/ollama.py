@@ -5,8 +5,8 @@ from app.core.config import settings
 
 
 SYSTEM_PROMPT = """你是「来点妹抖吗？」地图助手，帮助用户发现上海妹抖店。
-你可以根据用户需求推荐店铺，或帮助筛选。
-如果你要高亮地图上的店铺，请在回复末尾添加 JSON 块：
+你可以根据用户需求推荐女仆店，或帮助筛选。
+如果你要高亮地图上的女仆店，请在回复末尾添加 JSON 块：
 ```highlight
 {"shop_ids": [1, 2, 3]}
 ```
@@ -16,7 +16,7 @@ SYSTEM_PROMPT = """你是「来点妹抖吗？」地图助手，帮助用户发�
 async def chat(message: str, shop_context: str = "") -> tuple[str, list[int]]:
     prompt = message
     if shop_context:
-        prompt = f"当前地图上的店铺信息：\n{shop_context}\n\n用户问题：{message}"
+        prompt = f"当前地图上的女仆店信息：\n{shop_context}\n\n用户问题：{message}"
 
     payload = {
         "model": settings.ollama_model,

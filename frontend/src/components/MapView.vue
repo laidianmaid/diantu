@@ -8,7 +8,7 @@
       class="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 py-2 min-w-48 max-w-64"
       :style="{ left: clusterPopup.x + 'px', top: clusterPopup.y + 'px' }"
     >
-      <p class="text-xs text-gray-400 px-3 pb-1 border-b border-gray-100">{{ clusterPopup.shops.length }} 家店铺</p>
+      <p class="text-xs text-gray-400 px-3 pb-1 border-b border-gray-100">{{ clusterPopup.shops.length }} 家女仆店</p>
       <button
         v-for="s in clusterPopup.shops"
         :key="s.id"
