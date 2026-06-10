@@ -63,7 +63,6 @@ function initMap() {
   map = new window.AMap.Map(mapContainer.value, {
     center: [121.473701, 31.230416],
     zoom: 14,
-    mapStyle: 'amap://styles/macaron',
   })
   map.on('click', () => {
     shopsStore.selectedShop = null
