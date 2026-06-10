@@ -2,9 +2,8 @@ import re
 from typing import AsyncGenerator
 
 COLOR_MAP = {
-    "红": "red", "绿": "green", "黄": "yellow", "蓝": "blue",
-    "紫": "purple", "橙": "orange", "粉": "pink", "黑": "black",
-    "白": "white", "灰": "gray",
+    "纯素": "sagegreen", "半绿半素": "olivedrap", "纯绿": "seagreen",
+    "半荤半绿": "salmon", "纯荤": "hotpink",
 }
 
 

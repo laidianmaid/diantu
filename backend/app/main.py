@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 import app.models  # noqa: F401 — ensures models are registered before create_all
 
-from app.routers import auth, users, shops, reviews, ai
+from app.routers import auth, users, shops, reviews, ai, amap_proxy
 
 
 @asynccontextmanager
@@ -63,6 +63,7 @@ app.include_router(users.router, prefix=API_PREFIX)
 app.include_router(shops.router, prefix=API_PREFIX)
 app.include_router(reviews.router, prefix=API_PREFIX)
 app.include_router(ai.router, prefix=API_PREFIX)
+app.include_router(amap_proxy.router)  # 无 API_PREFIX，路径为 /_AMapService/...
 
 
 @app.get("/")

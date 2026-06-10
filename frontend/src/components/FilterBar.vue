@@ -31,12 +31,11 @@ import { useShopsStore } from '../stores/shops'
 const shopsStore = useShopsStore()
 
 const colors = [
-  { value: 'red', label: '红', hex: '#ef4444' },
-  { value: 'green', label: '绿', hex: '#22c55e' },
-  { value: 'yellow', label: '黄', hex: '#eab308' },
-  { value: 'blue', label: '蓝', hex: '#3b82f6' },
-  { value: 'purple', label: '紫', hex: '#a855f7' },
-  { value: 'orange', label: '橙', hex: '#f97316' },
+  { value: 'sagegreen', label: '纯素', hex: '#8FBC8F' },
+  { value: 'olivedrab', label: '半绿半素', hex: '#6B8E23' },
+  { value: 'seagreen', label: '纯绿', hex: '#2E8B57' },
+  { value: 'salmon', label: '半荤半绿', hex: '#FA8072' },
+  { value: 'hotpink', label: '纯荤', hex: '#FF69B4' },
 ]
 
 const statuses = [

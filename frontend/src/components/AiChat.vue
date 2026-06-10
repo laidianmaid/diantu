@@ -10,7 +10,7 @@
         v-model="message"
         @keyup.enter="send"
         :disabled="loading"
-        placeholder="想喝什么风格的妹抖？"
+        placeholder="想要什么风格的妹抖？"
         class="flex-1 text-sm outline-none bg-transparent placeholder-gray-400"
       />
       <button

@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>来点妹抖吗？</title>
     <script>
-      window.AMAP_JS_KEY = "__AMAP_JS_KEY__"
+      // jscode 不在前端出现，通过后端代理 /_AMapService 注入
+      window._AMapSecurityConfig = {
+        serviceHost: window.location.origin + "/_AMapService",
+      }
     </script>
   </head>
   <body>

@@ -20,11 +20,12 @@ const COLOR_HEX = {
 function loadAmapScript() {
   return new Promise((resolve, reject) => {
     if (window.AMap) return resolve()
-    const key = window.AMAP_JS_KEY
-    if (!key || key === '__AMAP_JS_KEY__') {
-      console.warn('高德地图 JS Key 未配置，使用占位地图')
+    const key = import.meta.env.VITE_AMAP_JS_KEY
+    if (!key) {
+      console.warn('VITE_AMAP_JS_KEY 未配置，地图不加载')
       return resolve()
     }
+    // _AMapSecurityConfig.serviceHost 在 index.html 中已配置，jscode 由后端代理注入
     const s = document.createElement('script')
     s.src = `https://webapi.amap.com/maps?v=2.0&key=${key}`
     s.onload = resolve

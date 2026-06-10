@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     amap_key: str = ""
     amap_js_key: str = ""
+    amap_jscode: str = ""
 
     ollama_base_url: str = "http://host.docker.internal:11434"
     ollama_model: str = "gemma3"
