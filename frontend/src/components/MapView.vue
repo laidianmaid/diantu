@@ -216,7 +216,6 @@ function locateUser() {
 onMounted(async () => {
   await loadAmapScript()
   initMap()
-  locateUser()
 })
 
 onUnmounted(() => {

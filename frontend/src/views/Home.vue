@@ -13,12 +13,12 @@
           <span class="text-lg">☕</span>
           <span class="font-semibold text-gray-800 text-sm hidden sm:block">来点妹抖吗？</span>
         </div>
-        <div class="flex-1" />
         <button
           @click="mapViewRef?.locateUser()"
           title="定位到我的位置"
-          class="bg-white/95 backdrop-blur rounded-xl shadow-md px-3 py-2 text-sm text-gray-600 hover:bg-white transition"
+          class="bg-blue-500 hover:bg-blue-600 backdrop-blur rounded-xl shadow-md px-3 py-2 text-sm text-white transition"
         >◎</button>
+        <div class="flex-1" />
         <button
           @click="showUserPanel = !showUserPanel"
           class="bg-white/95 backdrop-blur rounded-xl shadow-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-white transition"
