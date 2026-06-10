@@ -16,8 +16,14 @@
         <button
           @click="mapViewRef?.locateUser()"
           title="定位到我的位置"
-          class="bg-blue-500 hover:bg-blue-600 backdrop-blur rounded-xl shadow-md px-3 py-2 text-sm text-white transition"
-        >◎</button>
+          class="bg-blue-500 hover:bg-blue-600 backdrop-blur rounded-xl shadow-md p-2 text-white transition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+            <circle cx="12" cy="12" r="8"/>
+          </svg>
+        </button>
         <div class="flex-1" />
         <button
           @click="showUserPanel = !showUserPanel"
