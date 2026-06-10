@@ -1,7 +1,7 @@
 <template>
   <div class="relative w-full h-screen overflow-hidden bg-gray-100">
     <!-- Map Layer -->
-    <MapView class="absolute inset-0" />
+    <MapView ref="mapViewRef" class="absolute inset-0" />
 
     <!-- Top Controls — shrink right edge when sidebar is open -->
     <div
@@ -14,6 +14,11 @@
           <span class="font-semibold text-gray-800 text-sm hidden sm:block">来点妹抖吗？</span>
         </div>
         <div class="flex-1" />
+        <button
+          @click="mapViewRef?.locateUser()"
+          title="定位到我的位置"
+          class="bg-white/95 backdrop-blur rounded-xl shadow-md px-3 py-2 text-sm text-gray-600 hover:bg-white transition"
+        >◎</button>
         <button
           @click="showUserPanel = !showUserPanel"
           class="bg-white/95 backdrop-blur rounded-xl shadow-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-white transition"
@@ -81,6 +86,7 @@ const shopsStore = useShopsStore()
 const authStore = useAuthStore()
 const showUserPanel = ref(false)
 const windowWidth = ref(window.innerWidth)
+const mapViewRef = ref(null)
 
 const isMobile = computed(() => windowWidth.value < 768)
 const panelOpen = computed(() => !!shopsStore.selectedShop && !isMobile.value)

@@ -183,9 +183,37 @@ function selectFromCluster(id) {
   shopsStore.selectShop(id)
 }
 
+let locationMarker = null
+
+function locateUser() {
+  if (!navigator.geolocation) return
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      if (!map) return
+      const { longitude, latitude } = pos.coords
+      map.setCenter([longitude, latitude])
+      map.setZoom(15)
+      if (locationMarker) map.remove(locationMarker)
+      locationMarker = new window.AMap.CircleMarker({
+        center: [longitude, latitude],
+        radius: 8,
+        strokeColor: '#fff',
+        strokeWeight: 2,
+        fillColor: '#3b82f6',
+        fillOpacity: 1,
+        zIndex: 200,
+      })
+      map.add(locationMarker)
+    },
+    () => {},
+    { enableHighAccuracy: true, timeout: 8000 },
+  )
+}
+
 onMounted(async () => {
   await loadAmapScript()
   initMap()
+  locateUser()
 })
 
 onUnmounted(() => {
@@ -194,4 +222,6 @@ onUnmounted(() => {
 
 watch(() => shopsStore.shops, renderMarkers, { deep: true })
 watch(() => shopsStore.highlightedIds, renderMarkers, { deep: true })
+
+defineExpose({ locateUser })
 </script>
