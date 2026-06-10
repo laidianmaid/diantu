@@ -24,10 +24,10 @@
           <span v-if="shop.style" class="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full">{{ shop.style }}</span>
           <span v-if="shop.type" class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">{{ shop.type }}</span>
           <span
-            class="text-xs px-2 py-1 rounded-full"
-            :style="`background:${colorBg}22; color:${colorBg}`"
+            class="text-xs px-2 py-1 rounded-full font-medium"
+            :style="`background:${colorHex}28; color:${colorHex}`"
           >
-            {{ shop.color }}
+            {{ colorLabel }}
           </span>
         </div>
 
@@ -105,14 +105,19 @@ const STATUS_MAP = {
   shutdown: { label: '已闭店', cls: 'bg-red-100 text-red-500' },
 }
 
-const COLOR_HEX = {
-  red: '#ef4444', green: '#22c55e', yellow: '#eab308', blue: '#3b82f6',
-  purple: '#a855f7', orange: '#f97316', pink: '#ec4899', black: '#374151', gray: '#6b7280',
+const COLOR_MAP = {
+  sagegreen: { hex: '#8FBC8F', label: '纯素' },
+  olivedrab: { hex: '#6B8E23', label: '半绿半素' },
+  seagreen:  { hex: '#2E8B57', label: '纯绿' },
+  salmon:    { hex: '#FA8072', label: '半荤半绿' },
+  hotpink:   { hex: '#FF69B4', label: '纯荤' },
 }
 
 const statusLabel = computed(() => STATUS_MAP[props.shop?.status]?.label || props.shop?.status)
 const statusClass = computed(() => STATUS_MAP[props.shop?.status]?.cls || 'bg-gray-100 text-gray-500')
-const colorBg = computed(() => COLOR_HEX[props.shop?.color] || '#6b7280')
+const colorEntry = computed(() => COLOR_MAP[props.shop?.color] || { hex: '#6b7280', label: props.shop?.color })
+const colorHex = computed(() => colorEntry.value.hex)
+const colorLabel = computed(() => colorEntry.value.label)
 
 function formatHours(hours) {
   if (typeof hours === 'string') return hours

@@ -3,8 +3,11 @@
     <!-- Map Layer -->
     <MapView class="absolute inset-0" />
 
-    <!-- Top Controls -->
-    <div class="absolute top-4 left-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
+    <!-- Top Controls — shrink right edge when sidebar is open -->
+    <div
+      class="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none transition-[right] duration-300 ease-in-out"
+      :style="{ right: panelOpen ? 'calc(24rem + 1rem)' : '1rem' }"
+    >
       <div class="flex items-center gap-2 pointer-events-auto">
         <div class="bg-white/95 backdrop-blur rounded-xl shadow-md px-4 py-2 flex items-center gap-2">
           <span class="text-lg">☕</span>
@@ -28,8 +31,12 @@
       </div>
     </div>
 
-    <!-- User Panel Dropdown -->
-    <div v-if="showUserPanel" class="absolute top-16 right-4 z-20">
+    <!-- User Panel Dropdown — follows the user button -->
+    <div
+      v-if="showUserPanel"
+      class="absolute top-16 z-20 transition-[right] duration-300 ease-in-out"
+      :style="{ right: panelOpen ? 'calc(24rem + 1rem)' : '1rem' }"
+    >
       <UserPanel />
     </div>
 
@@ -76,6 +83,7 @@ const showUserPanel = ref(false)
 const windowWidth = ref(window.innerWidth)
 
 const isMobile = computed(() => windowWidth.value < 768)
+const panelOpen = computed(() => !!shopsStore.selectedShop && !isMobile.value)
 
 function onResize() { windowWidth.value = window.innerWidth }
 onMounted(() => window.addEventListener('resize', onResize))
