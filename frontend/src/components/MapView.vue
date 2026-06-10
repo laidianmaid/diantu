@@ -114,9 +114,8 @@ function renderMarkers() {
       cursor: 'pointer',
     })
 
-    circle.on('click', (e) => {
+    function handleClick() {
       if (isMulti) {
-        // 弹出店铺列表
         const pixel = map.lngLatToContainer([lng, lat])
         const rect = mapContainer.value.getBoundingClientRect()
         clusterPopup.x = rect.left + pixel.x + 16
@@ -126,8 +125,9 @@ function renderMarkers() {
       } else {
         shopsStore.selectShop(shops[0].id)
       }
-    })
+    }
 
+    circle.on('click', handleClick)
     mapObjects.push(circle)
     map.add(circle)
 
@@ -144,9 +144,10 @@ function renderMarkers() {
           fontSize: '10px',
           fontWeight: 'bold',
           color: '#fff',
-          pointerEvents: 'none',
+          cursor: 'pointer',
         },
       })
+      badge.on('click', handleClick)
       mapObjects.push(badge)
       map.add(badge)
     }
@@ -163,9 +164,10 @@ function renderMarkers() {
           fontSize: '11px',
           color: '#1f2937',
           whiteSpace: 'nowrap',
-          pointerEvents: 'none',
+          cursor: 'pointer',
         },
       })
+      label.on('click', handleClick)
       mapObjects.push(label)
       map.add(label)
     }

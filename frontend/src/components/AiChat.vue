@@ -19,7 +19,7 @@
         @blur="onBlur"
         @focus="onInput"
         :disabled="loading"
-        placeholder="搜索店铺 或 问 AI 助手…"
+        placeholder="想要什么风格的妹抖？"
         class="flex-1 text-sm outline-none bg-transparent placeholder-gray-400"
         autocomplete="off"
       />
