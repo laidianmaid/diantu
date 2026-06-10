@@ -13,12 +13,14 @@
           <span class="text-lg">☕</span>
           <span class="font-semibold text-gray-800 text-sm hidden sm:block">来点妹抖吗？</span>
         </div>
+        <!-- 手机端：定位按钮跟在标题右边 -->
         <button
+          v-if="isMobile"
           @click="mapViewRef?.locateUser()"
           title="定位到我的位置"
-          class="bg-blue-500 hover:bg-blue-600 backdrop-blur rounded-xl shadow-md p-2 text-white transition"
+          class="md:hidden bg-blue-500 hover:bg-blue-600 rounded-xl shadow-md p-2 text-white transition"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3" fill="currentColor"/>
             <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
             <circle cx="12" cy="12" r="8"/>
@@ -72,6 +74,20 @@
         <ShopPanel :shop="shopsStore.selectedShop" @close="shopsStore.selectedShop = null" />
       </div>
     </transition>
+
+    <!-- 大屏：定位按钮固定左下角 -->
+    <button
+      v-if="!isMobile"
+      @click="mapViewRef?.locateUser()"
+      title="定位到我的位置"
+      class="absolute bottom-6 left-4 z-10 bg-blue-500 hover:bg-blue-600 rounded-xl shadow-md p-2.5 text-white transition"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+        <circle cx="12" cy="12" r="8"/>
+      </svg>
+    </button>
 
     <!-- Click outside to close user panel -->
     <div v-if="showUserPanel" class="absolute inset-0 z-[15]" @click="showUserPanel = false" />
