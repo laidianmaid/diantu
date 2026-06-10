@@ -1,0 +1,61 @@
+<template>
+  <div class="flex flex-wrap gap-2 p-2 bg-white/90 backdrop-blur rounded-xl shadow-md">
+    <button
+      v-for="c in colors"
+      :key="c.value"
+      @click="toggle('color', c.value)"
+      class="flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border transition"
+      :class="active('color', c.value) ? 'border-transparent text-white shadow' : 'border-gray-200 text-gray-600 hover:bg-gray-50'"
+      :style="active('color', c.value) ? `background:${c.hex}` : ''"
+    >
+      <span class="w-3 h-3 rounded-full" :style="`background:${c.hex}`" />
+      {{ c.label }}
+    </button>
+    <div class="w-px bg-gray-200 self-stretch mx-1" />
+    <button
+      v-for="s in statuses"
+      :key="s.value"
+      @click="toggle('status', s.value)"
+      class="px-3 py-1 rounded-full text-sm font-medium border transition"
+      :class="active('status', s.value) ? 'bg-gray-800 text-white border-transparent' : 'border-gray-200 text-gray-600 hover:bg-gray-50'"
+    >
+      {{ s.label }}
+    </button>
+    <button @click="clearAll" class="ml-auto text-xs text-gray-400 hover:text-gray-600 px-2">清除</button>
+  </div>
+</template>
+
+<script setup>
+import { useShopsStore } from '../stores/shops'
+
+const shopsStore = useShopsStore()
+
+const colors = [
+  { value: 'red', label: '红', hex: '#ef4444' },
+  { value: 'green', label: '绿', hex: '#22c55e' },
+  { value: 'yellow', label: '黄', hex: '#eab308' },
+  { value: 'blue', label: '蓝', hex: '#3b82f6' },
+  { value: 'purple', label: '紫', hex: '#a855f7' },
+  { value: 'orange', label: '橙', hex: '#f97316' },
+]
+
+const statuses = [
+  { value: 'open', label: '营业中' },
+  { value: 'closed', label: '休息' },
+  { value: 'preparing', label: '筹划中' },
+  { value: 'shutdown', label: '已闭店' },
+]
+
+function active(key, value) {
+  return shopsStore.filters[key] === value
+}
+
+function toggle(key, value) {
+  shopsStore.applyFilter(key, active(key, value) ? null : value)
+}
+
+function clearAll() {
+  shopsStore.applyFilter('color', null)
+  shopsStore.applyFilter('status', null)
+}
+</script>
