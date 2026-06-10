@@ -77,6 +77,24 @@ function coordKey(lat, lng) {
   return `${parseFloat(lat).toFixed(4)},${parseFloat(lng).toFixed(4)}`
 }
 
+// 生成水滴形 SVG pin
+function makePinSvg(color, { opacity = 1, count = 0, w = 18 } = {}) {
+  const h = Math.round(w * 4 / 3)
+  const cx = w / 2
+  const cr = w * 0.42
+  const cy = cr + 1
+  const inner = count > 1
+    ? `<text x="12" y="13" text-anchor="middle" dominant-baseline="middle"
+         font-size="11" font-weight="700" fill="white"
+         font-family="system-ui,sans-serif">${count}</text>`
+    : ''
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 24 32">
+    <path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 20 12 20s12-11.6 12-20C24 5.4 18.6 0 12 0z"
+      fill="${color}" fill-opacity="${opacity}" stroke="white" stroke-width="1.5"/>
+    ${inner}
+  </svg>`
+}
+
 function renderMarkers() {
   if (!map) return
   map.remove(mapObjects)
@@ -100,20 +118,24 @@ function renderMarkers() {
     const isMulti = shops.length > 1
     const isHighlighted = !hasFilter || shops.some(s => highlightSet.has(s.id))
 
-    // 多店聚合时取主色（众数）
+    // 多店聚合取主色（众数）
     const colorCount = {}
     shops.forEach(s => { colorCount[s.color] = (colorCount[s.color] || 0) + 1 })
     const mainColor = Object.entries(colorCount).sort((a, b) => b[1] - a[1])[0][0]
     const fillColor = COLOR_HEX[mainColor] || '#6b7280'
 
-    const radius = isMulti ? 13 : (isHighlighted ? 10 : 7)
-    const circle = new window.AMap.CircleMarker({
-      center: [lng, lat],
-      radius,
-      strokeColor: isMulti ? '#fff' : '#fff',
-      strokeWeight: 2,
-      fillColor,
-      fillOpacity: isHighlighted ? 1 : 0.35,
+    // pin 尺寸：多店稍大，暗淡时缩小
+    const pinW = isMulti ? 22 : (isHighlighted ? 18 : 14)
+    const pinH = Math.round(pinW * 4 / 3)
+    const opacity = isHighlighted ? 1 : 0.4
+
+    const pinSvg = makePinSvg(fillColor, { opacity, count: isMulti ? shops.length : 0, w: pinW })
+
+    const marker = new window.AMap.Marker({
+      position: [lng, lat],
+      content: pinSvg,
+      // offset: 让 pin 底部尖端对齐坐标点
+      offset: new window.AMap.Pixel(-pinW / 2, -pinH),
       zIndex: isHighlighted ? 120 : 100,
       cursor: 'pointer',
     })
@@ -131,37 +153,17 @@ function renderMarkers() {
       }
     }
 
-    circle.on('click', handleClick)
-    mapObjects.push(circle)
-    map.add(circle)
+    marker.on('click', handleClick)
+    mapObjects.push(marker)
+    map.add(marker)
 
-    // 数字角标（多店时显示）
-    if (isMulti) {
-      const badge = new window.AMap.Text({
-        text: String(shops.length),
-        position: [lng, lat],
-        offset: new window.AMap.Pixel(0, 0),
-        anchor: 'center',
-        style: {
-          background: 'transparent',
-          border: 'none',
-          fontSize: '10px',
-          fontWeight: 'bold',
-          color: '#fff',
-          cursor: 'pointer',
-        },
-      })
-      badge.on('click', handleClick)
-      mapObjects.push(badge)
-      map.add(badge)
-    }
-
-    // 单店名称标签（只在高亮或无筛选时显示）
+    // 单店名称标签（高亮时显示），居中在 pin 下方
     if (!isMulti && isHighlighted) {
       const label = new window.AMap.Text({
         text: shops[0].name,
         position: [lng, lat],
-        offset: new window.AMap.Pixel(14, -8),
+        anchor: 'center',
+        offset: new window.AMap.Pixel(0, 4),
         style: {
           background: 'transparent',
           border: 'none',
@@ -169,6 +171,7 @@ function renderMarkers() {
           color: '#1f2937',
           whiteSpace: 'nowrap',
           cursor: 'pointer',
+          textShadow: '0 1px 3px rgba(255,255,255,0.9)',
         },
       })
       label.on('click', handleClick)
