@@ -157,13 +157,13 @@ function renderMarkers() {
     mapObjects.push(marker)
     map.add(marker)
 
-    // 单店名称标签（高亮时显示），居中在 pin 下方
+    // 单店名称标签（高亮时显示），pin 右侧中部
     if (!isMulti && isHighlighted) {
       const label = new window.AMap.Text({
         text: shops[0].name,
         position: [lng, lat],
-        anchor: 'center',
-        offset: new window.AMap.Pixel(0, 4),
+        anchor: 'middle-left',
+        offset: new window.AMap.Pixel(Math.round(pinW / 2) + 2, -Math.round(pinH * 0.59)),
         style: {
           background: 'transparent',
           border: 'none',
