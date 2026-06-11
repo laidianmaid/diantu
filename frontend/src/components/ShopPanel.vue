@@ -2,7 +2,7 @@
   <div v-if="shop" class="h-full flex flex-col bg-white overflow-hidden">
     <!-- Header -->
     <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 flex-shrink-0">
-      <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600 mr-1">←</button>
+      <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600 mr-1">{{ collapseArrow }}</button>
       <h2 class="font-semibold text-gray-900 flex-1 truncate">{{ shop.name }}</h2>
       <span class="text-sm font-medium text-amber-500">{{ shop.score ? shop.score.toFixed(1) : '—' }}</span>
       <span class="text-xs px-2 py-0.5 rounded-full" :class="statusClass">{{ statusLabel }}</span>
@@ -98,7 +98,10 @@ import { useAuthStore } from '../stores/auth'
 import { useShopsStore } from '../stores/shops'
 import ReviewSection from './ReviewSection.vue'
 
-const props = defineProps({ shop: Object })
+const props = defineProps({
+  shop: Object,
+  isMobile: Boolean,
+})
 defineEmits(['close'])
 
 const authStore = useAuthStore()
@@ -124,6 +127,7 @@ const statusClass = computed(() => STATUS_MAP[props.shop?.status]?.cls || 'bg-gr
 const colorEntry = computed(() => COLOR_MAP[props.shop?.color] || { hex: '#6b7280', label: props.shop?.color })
 const colorHex = computed(() => colorEntry.value.hex)
 const colorLabel = computed(() => colorEntry.value.label)
+const collapseArrow = computed(() => (props.isMobile ? '↓' : '→'))
 
 function formatHours(hours) {
   if (typeof hours === 'string') return hours
