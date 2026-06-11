@@ -1,10 +1,12 @@
 services:
   caddy:
-    image: caddy:alpine
+    build: ./caddy-docker  # 指向刚才创建的文件夹
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - DUCKDNS_TOKEN=***REMOVED***
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
