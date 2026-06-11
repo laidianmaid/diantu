@@ -93,9 +93,9 @@ function coordKey(lat, lng) {
 function getClusterCellSize(zoom) {
   if (zoom >= 16) return 0
   if (zoom >= 15) return 16
-  if (zoom >= 14) return 20
-  if (zoom >= 13) return 26
-  return 32
+  if (zoom >= 14) return 24
+  if (zoom >= 13) return 36
+  return 48
 }
 
 function groupShopsByCoordinate() {
