@@ -238,6 +238,7 @@ function renderMarkers() {
         position: [lng, lat],
         anchor: 'middle-left',
         offset: new window.AMap.Pixel(Math.round(pinW / 2) + 2, -Math.round(pinH * 0.59)),
+        zIndex: 130,
         style: {
           background: 'transparent',
           border: 'none',
