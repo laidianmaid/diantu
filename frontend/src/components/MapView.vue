@@ -41,6 +41,7 @@ const COLOR_HEX = {
 }
 
 const clusterPopup = reactive({ visible: false, x: 0, y: 0, shops: [] })
+let renderFrame = 0
 
 function loadAmapScript() {
   return new Promise((resolve, reject) => {
@@ -68,12 +69,67 @@ function initMap() {
     shopsStore.selectedShop = null
     clusterPopup.visible = false
   })
-  renderMarkers()
+  map.on('zoomchange', scheduleRenderMarkers)
+  map.on('moveend', scheduleRenderMarkers)
+  scheduleRenderMarkers()
 }
 
 // 把坐标精度截断到小数点后4位（约11米），相当于"同一栋楼"
 function coordKey(lat, lng) {
   return `${parseFloat(lat).toFixed(4)},${parseFloat(lng).toFixed(4)}`
+}
+
+function getClusterCellSize(zoom) {
+  if (zoom >= 16) return 0
+  if (zoom >= 15) return 16
+  if (zoom >= 14) return 20
+  if (zoom >= 13) return 26
+  return 32
+}
+
+function groupShopsByCoordinate() {
+  const groups = new Map()
+  shopsStore.shops.forEach(shop => {
+    if (!shop.lat || !shop.lng) return
+    const lat = Number(shop.lat)
+    const lng = Number(shop.lng)
+    const key = coordKey(lat, lng)
+    if (!groups.has(key)) {
+      groups.set(key, { shops: [], lat, lng })
+    }
+    groups.get(key).shops.push(shop)
+  })
+  return Array.from(groups.values())
+}
+
+function buildClusters() {
+  const coordGroups = groupShopsByCoordinate()
+  const cellSize = getClusterCellSize(map.getZoom())
+  if (!cellSize) return coordGroups
+
+  const clusters = new Map()
+
+  coordGroups.forEach(group => {
+    const pixel = map.lngLatToContainer([group.lng, group.lat])
+    const key = `${Math.floor(pixel.x / cellSize)},${Math.floor(pixel.y / cellSize)}`
+    const weight = group.shops.length
+
+    if (!clusters.has(key)) {
+      clusters.set(key, { shops: [], latSum: 0, lngSum: 0, shopCount: 0 })
+    }
+
+    const cluster = clusters.get(key)
+    cluster.shops.push(...group.shops)
+    cluster.latSum += group.lat * weight
+    cluster.lngSum += group.lng * weight
+    cluster.shopCount += weight
+  })
+
+  return Array.from(clusters.values()).map(cluster => ({
+    shops: cluster.shops,
+    lat: cluster.latSum / cluster.shopCount,
+    lng: cluster.lngSum / cluster.shopCount,
+  }))
 }
 
 // 生成水滴形 SVG pin
@@ -94,6 +150,14 @@ function makePinSvg(color, { opacity = 1, count = 0, w = 18 } = {}) {
   </svg>`
 }
 
+function scheduleRenderMarkers() {
+  if (renderFrame) cancelAnimationFrame(renderFrame)
+  renderFrame = requestAnimationFrame(() => {
+    renderFrame = 0
+    renderMarkers()
+  })
+}
+
 function renderMarkers() {
   if (!map) return
   map.remove(mapObjects)
@@ -102,28 +166,17 @@ function renderMarkers() {
 
   const highlightSet = new Set(shopsStore.highlightedIds)
   const hasFilter = highlightSet.size > 0
+  const clusters = buildClusters()
 
-  // 按坐标分组
-  const groups = new Map()
-  shopsStore.shops.forEach(shop => {
-    if (!shop.lat || !shop.lng) return
-    const key = coordKey(shop.lat, shop.lng)
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key).push(shop)
-  })
-
-  groups.forEach((shops, key) => {
-    const [lat, lng] = key.split(',').map(Number)
+  clusters.forEach(({ shops, lat, lng }) => {
     const isMulti = shops.length > 1
     const isHighlighted = !hasFilter || shops.some(s => highlightSet.has(s.id))
 
-    // 多店聚合取主色（众数）
     const colorCount = {}
     shops.forEach(s => { colorCount[s.color] = (colorCount[s.color] || 0) + 1 })
     const mainColor = Object.entries(colorCount).sort((a, b) => b[1] - a[1])[0][0]
     const fillColor = COLOR_HEX[mainColor] || '#6b7280'
 
-    // pin 尺寸：多店稍大，暗淡时缩小
     const pinW = isMulti ? 22 : (isHighlighted ? 18 : 14)
     const pinH = Math.round(pinW * 4 / 3)
     const opacity = isHighlighted ? 1 : 0.4
@@ -232,11 +285,12 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (renderFrame) cancelAnimationFrame(renderFrame)
   if (map) map.destroy()
 })
 
-watch(() => shopsStore.shops, renderMarkers, { deep: true })
-watch(() => shopsStore.highlightedIds, renderMarkers, { deep: true })
+watch(() => shopsStore.shops, scheduleRenderMarkers, { deep: true })
+watch(() => shopsStore.highlightedIds, scheduleRenderMarkers, { deep: true })
 
 defineExpose({ locateUser })
 </script>
