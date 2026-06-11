@@ -1,5 +1,5 @@
 <template>
-  <div class="relative w-full h-screen overflow-hidden bg-gray-100">
+  <div class="relative w-full h-screen overflow-hidden bg-gray-100 hide-amap-branding">
     <!-- Map Layer -->
     <MapView ref="mapViewRef" class="absolute inset-0" />
 
@@ -122,4 +122,13 @@ onUnmounted(() => window.removeEventListener('resize', onResize))
 .slide-right-enter-from, .slide-right-leave-to { transform: translateX(100%); }
 .slide-up-enter-active, .slide-up-leave-active { transition: transform 0.3s ease; }
 .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); }
+
+.hide-amap-branding :deep(.amap-logo) {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.hide-amap-branding :deep(.amap-copyright) {
+  opacity: 0 !important;
+}
 </style>
