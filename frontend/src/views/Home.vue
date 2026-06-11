@@ -68,7 +68,7 @@
     <transition name="slide-up">
       <div
         v-if="shopsStore.selectedShop && isMobile"
-        class="absolute left-0 right-0 bottom-0 z-10 h-3/4 rounded-t-2xl shadow-xl overflow-hidden"
+        class="absolute left-0 right-0 bottom-0 z-10 h-2/3 rounded-t-2xl shadow-xl overflow-hidden"
       >
         <div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-2" />
         <ShopPanel :shop="shopsStore.selectedShop" @close="shopsStore.selectedShop = null" />
