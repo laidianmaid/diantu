@@ -1,6 +1,8 @@
 diantu.duckdns.org {
     tls {
-        dns duckdns {$DUCKDNS_TOKEN}
+        dns duckdns {$DUCKDNS_TOKEN} {
+            propagation_delay 60s
+        }
     }
     reverse_proxy frontend:80
 }
