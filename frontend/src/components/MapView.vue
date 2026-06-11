@@ -1,26 +1,30 @@
 <template>
-  <div ref="mapContainer" class="w-full h-full" />
+  <div class="w-full h-full">
+    <div ref="mapContainer" class="w-full h-full" />
 
-  <!-- 同坐标多店弹出列表 -->
-  <Teleport to="body">
-    <div
-      v-if="clusterPopup.visible"
-      class="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 py-2 min-w-48 max-w-64"
-      :style="{ left: clusterPopup.x + 'px', top: clusterPopup.y + 'px' }"
-    >
-      <p class="text-xs text-gray-400 px-3 pb-1 border-b border-gray-100">{{ clusterPopup.shops.length }} 家女仆店</p>
-      <button
-        v-for="s in clusterPopup.shops"
-        :key="s.id"
-        @click="selectFromCluster(s.id)"
-        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 flex items-center gap-2 transition"
+    <!-- 同坐标多店弹出列表 -->
+    <Teleport to="body">
+      <div
+        v-if="clusterPopup.visible"
+        class="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 py-2 min-w-48 max-w-64"
+        :style="{ left: clusterPopup.x + 'px', top: clusterPopup.y + 'px' }"
+        @click.stop
+        @touchstart.stop
       >
-        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${COLOR_HEX[s.color] || '#6b7280'}`" />
-        {{ s.name }}
-      </button>
-    </div>
-    <div v-if="clusterPopup.visible" class="fixed inset-0 z-40" @click="clusterPopup.visible = false" />
-  </Teleport>
+        <p class="text-xs text-gray-400 px-3 pb-1 border-b border-gray-100">{{ clusterPopup.shops.length }} 家女仆店</p>
+        <button
+          v-for="s in clusterPopup.shops"
+          :key="s.id"
+          @click="selectFromCluster(s.id)"
+          class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 flex items-center gap-2 transition"
+        >
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${COLOR_HEX[s.color] || '#6b7280'}`" />
+          {{ s.name }}
+        </button>
+      </div>
+      <div v-if="clusterPopup.visible && !isMobileViewport" class="fixed inset-0 z-40" @click="clusterPopup.visible = false" />
+    </Teleport>
+  </div>
 </template>
 
 <script setup>
@@ -31,6 +35,8 @@ const mapContainer = ref(null)
 const shopsStore = useShopsStore()
 let map = null
 let mapObjects = []  // 所有添加到地图的对象
+let suppressMapClickUntil = 0
+const isMobileViewport = ref(false)
 
 const COLOR_HEX = {
   sagegreen: '#8FBC8F',
@@ -42,6 +48,10 @@ const COLOR_HEX = {
 
 const clusterPopup = reactive({ visible: false, x: 0, y: 0, shops: [] })
 let renderFrame = 0
+
+function updateViewportFlags() {
+  isMobileViewport.value = window.innerWidth < 768
+}
 
 function loadAmapScript() {
   return new Promise((resolve, reject) => {
@@ -66,6 +76,7 @@ function initMap() {
     zoom: 14,
   })
   map.on('click', () => {
+    if (Date.now() < suppressMapClickUntil) return
     shopsStore.selectedShop = null
     clusterPopup.visible = false
   })
@@ -158,6 +169,22 @@ function scheduleRenderMarkers() {
   })
 }
 
+function openClusterPopup(lng, lat, shops) {
+  const pixel = map.lngLatToContainer([lng, lat])
+  const rect = mapContainer.value.getBoundingClientRect()
+  const popupWidth = isMobileViewport.value ? Math.min(window.innerWidth - 24, 256) : 256
+  const popupHeight = Math.min(window.innerHeight - 24, 44 + shops.length * 40)
+  const margin = 12
+  const rawX = rect.left + pixel.x + 16
+  const rawY = rect.top + pixel.y - 8
+
+  clusterPopup.x = Math.max(margin, Math.min(rawX, window.innerWidth - popupWidth - margin))
+  clusterPopup.y = Math.max(margin, Math.min(rawY, window.innerHeight - popupHeight - margin))
+  clusterPopup.shops = shops
+  clusterPopup.visible = true
+  suppressMapClickUntil = Date.now() + 300
+}
+
 function renderMarkers() {
   if (!map) return
   map.remove(mapObjects)
@@ -194,12 +221,7 @@ function renderMarkers() {
 
     function handleClick() {
       if (isMulti) {
-        const pixel = map.lngLatToContainer([lng, lat])
-        const rect = mapContainer.value.getBoundingClientRect()
-        clusterPopup.x = rect.left + pixel.x + 16
-        clusterPopup.y = rect.top + pixel.y - 8
-        clusterPopup.shops = shops
-        clusterPopup.visible = true
+        openClusterPopup(lng, lat, shops)
       } else {
         shopsStore.selectShop(shops[0].id)
       }
@@ -280,12 +302,15 @@ function locateUser() {
 }
 
 onMounted(async () => {
+  updateViewportFlags()
+  window.addEventListener('resize', updateViewportFlags)
   await loadAmapScript()
   initMap()
 })
 
 onUnmounted(() => {
   if (renderFrame) cancelAnimationFrame(renderFrame)
+  window.removeEventListener('resize', updateViewportFlags)
   if (map) map.destroy()
 })
 
