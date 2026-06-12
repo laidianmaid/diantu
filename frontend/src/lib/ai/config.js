@@ -14,7 +14,7 @@ function isGgufUrl(url) {
 }
 
 export const EDGE_MODEL = {
-  label: 'Gemma 4 E2B',
+  label: 'Gemma 4',
   sizeBytes: Number(import.meta.env.VITE_EDGE_MODEL_SIZE_BYTES || 3416118240),
   urls: envModelUrls.length > 0 ? envModelUrls : DEFAULT_MODEL_URLS,
 }

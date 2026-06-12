@@ -192,7 +192,7 @@ async function warmupEdgeModel({ interactive = false } = {}) {
 
       state.ready = true
       state.mode = 'ready'
-      state.detail = `浏览器端 ${EDGE_MODEL.label} 已就绪，将优先本地推理。`
+      state.detail = `浏览器端 ${EDGE_MODEL.label} 已就绪。`
       return true
     } catch (error) {
       state.ready = false

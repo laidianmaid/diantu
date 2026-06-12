@@ -137,7 +137,7 @@ const runtimeBadge = computed(() => {
 })
 
 const replySourceLabel = computed(() => {
-  if (replySource.value === 'browser') return '来源：浏览器端 Gemma 4 E2B'
+  if (replySource.value === 'browser') return '来源：浏览器端 Gemma 4'
   if (replySource.value === 'ollama') return '来源：远程模型'
   return ''
 })
