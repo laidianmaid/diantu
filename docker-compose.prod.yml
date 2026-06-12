@@ -52,6 +52,8 @@ services:
         VITE_EDGE_MODEL_URLS: ${VITE_EDGE_MODEL_URLS:-}
         VITE_EDGE_MODEL_SIZE_BYTES: ${VITE_EDGE_MODEL_SIZE_BYTES:-3416118240}
     restart: always
+    volumes:
+      - ./frontend/public:/usr/share/nginx/html/public:ro
 
   bot:
     build: ./bot
