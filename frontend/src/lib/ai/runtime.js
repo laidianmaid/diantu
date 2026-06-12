@@ -30,6 +30,7 @@ const state = reactive({
   ready: false,
   downloadProgress: 0,
   lastSource: null,
+  forceRemote: false,
 })
 
 let detectPromise = null
@@ -343,7 +344,7 @@ export async function primeEdgeAi() {
 
 export async function chatWithEdgeFallback(message) {
   const supported = await detectSupport()
-  if (supported) {
+  if (supported && !state.forceRemote) {
     const ready = await warmupEdgeModel({ interactive: true })
     if (ready && wllama) {
       try {
@@ -363,10 +364,15 @@ export async function chatWithEdgeFallback(message) {
   return runFallbackChat(message, state.detail || '正在使用远程模型。')
 }
 
+export function toggleForceRemote() {
+  state.forceRemote = !state.forceRemote
+}
+
 export function useEdgeAiRuntime() {
   return {
     state: readonly(state),
     prime: primeEdgeAi,
     chat: chatWithEdgeFallback,
+    toggleForceRemote,
   }
 }

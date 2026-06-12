@@ -5,7 +5,16 @@
         <span class="text-base">☕</span>
         <span class="text-sm font-medium text-gray-700">AI 妹抖店助手</span>
       </div>
-      <span class="text-[11px] text-gray-400 truncate">{{ runtimeBadge }}</span>
+      <button
+        @click="edgeAi.toggleForceRemote()"
+        :disabled="runtimeState.mode === 'fallback'"
+        class="text-[11px] px-2 py-0.5 rounded-full border transition flex-shrink-0 disabled:cursor-not-allowed"
+        :class="isEffectiveRemote
+          ? 'border-gray-300 text-gray-400 enabled:hover:border-amber-400 enabled:hover:text-amber-600'
+          : 'border-amber-400 text-amber-600 enabled:hover:border-gray-300 enabled:hover:text-gray-400'"
+      >
+        {{ isEffectiveRemote ? '远程模型' : '本地模型' }}
+      </button>
     </div>
 
     <div
@@ -123,18 +132,9 @@ const COLOR_LABEL = {
   salmon: '半荤半绿', hotpink: '纯荤',
 }
 
-const runtimeBadge = computed(() => {
-  switch (runtimeState.mode) {
-    case 'ready':
-      return '本地 AI'
-    case 'warming':
-      return runtimeState.downloadProgress ? `预热中 ${runtimeState.downloadProgress}%` : '预热中'
-    case 'consent-required':
-      return '可启用本地 AI'
-    default:
-      return '远程 AI'
-  }
-})
+const isEffectiveRemote = computed(() =>
+  runtimeState.forceRemote || runtimeState.mode === 'fallback'
+)
 
 const replySourceLabel = computed(() => {
   if (replySource.value === 'browser') return '来源：浏览器端 Gemma 4'
