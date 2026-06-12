@@ -68,7 +68,7 @@ function hasConsent() {
 function requestConsent() {
   if (hasConsent()) return true
   const accepted = window.confirm(
-    `浏览器端 ${EDGE_MODEL.label} 首次使用需要下载 ${EDGE_MODEL_SIZE_LABEL} 模型，并占用较多显存/磁盘缓存。确认后将优先在本地运行，失败时自动回退到 Ollama。是否继续？`
+    `浏览器端 ${EDGE_MODEL.label} 首次使用需要下载 ${EDGE_MODEL_SIZE_LABEL} 模型，并占用较多显存/磁盘缓存。确认后将优先在本地运行，失败时自动切换到远程模型。是否继续？`
   )
   if (accepted) {
     localStorage.setItem(EDGE_AI_CONSENT_KEY, 'accepted')
@@ -90,38 +90,38 @@ async function detectSupport() {
   detectPromise = (async () => {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') {
       state.mode = 'fallback'
-      state.detail = '当前环境不支持浏览器端 AI，已使用 Ollama 回退。'
+      state.detail = '当前环境不支持浏览器端 AI，正在使用远程模型。'
       return false
     }
 
     if (!isDesktopChromium()) {
       state.mode = 'fallback'
-      state.detail = '首版浏览器端 AI 仅支持桌面 Chromium，当前已回退到 Ollama。'
+      state.detail = '首版浏览器端 AI 仅支持桌面 Chromium，正在使用远程模型。'
       return false
     }
 
     if (!navigator.gpu) {
       state.mode = 'fallback'
-      state.detail = '当前浏览器未启用 WebGPU，已回退到 Ollama。'
+      state.detail = '当前浏览器未启用 WebGPU，正在使用远程模型。'
       return false
     }
 
     if (EDGE_MODEL_REQUIRES_SPLIT) {
       state.mode = 'fallback'
-      state.detail = '当前 Gemma 4 E2B GGUF 是 3.42GB 单文件；浏览器端运行前需先切分为多个分片 URL，现已回退到 Ollama。'
+      state.detail = '当前 Gemma 4 E2B GGUF 是 3.42GB 单文件；浏览器端运行前需先切分为多个分片 URL，正在使用远程模型。'
       return false
     }
 
     if (!EDGE_MODEL_URLS_VALID || !EDGE_MODEL_PRIMARY_URL) {
       state.mode = 'fallback'
-      state.detail = '浏览器端模型 URL 配置无效；请检查 VITE_EDGE_MODEL_URLS 是否为逗号分隔的 .gguf 分片地址，当前已回退到 Ollama。'
+      state.detail = '浏览器端模型 URL 配置无效；请检查 VITE_EDGE_MODEL_URLS 是否为逗号分隔的 .gguf 分片地址，正在使用远程模型。'
       return false
     }
 
     const adapter = await navigator.gpu.requestAdapter().catch(() => null)
     if (!adapter) {
       state.mode = 'fallback'
-      state.detail = '当前设备无法分配 WebGPU adapter，已回退到 Ollama。'
+      state.detail = '当前设备无法分配 WebGPU adapter，正在使用远程模型。'
       return false
     }
 
@@ -144,7 +144,7 @@ async function warmupEdgeModel({ interactive = false } = {}) {
     if (!interactive) return false
     if (!requestConsent()) {
       state.mode = 'fallback'
-      state.detail = '已取消浏览器端模型下载，当前继续使用 Ollama。'
+      state.detail = '已取消浏览器端模型下载，当前继续使用远程模型。'
       return false
     }
   }
@@ -178,7 +178,7 @@ async function warmupEdgeModel({ interactive = false } = {}) {
     } catch (error) {
       state.ready = false
       state.mode = 'fallback'
-      state.detail = `浏览器端 ${EDGE_MODEL.label} 初始化失败，当前已回退到 Ollama。`
+      state.detail = `浏览器端 ${EDGE_MODEL.label} 初始化失败，正在使用远程模型。`
       if (wllama) {
         await wllama.exit().catch(() => {})
         wllama = null
@@ -299,7 +299,7 @@ async function runEdgeChat(message) {
 
 async function runFallbackChat(message, detail) {
   const shopsStore = useShopsStore()
-  state.activity = '正在等待 Ollama 回复…'
+  state.activity = '正在等待远程模型回复…'
   const { data } = await aiApi.chat({
     message,
     user_location: shopsStore.userLocation,
@@ -335,13 +335,13 @@ export async function chatWithEdgeFallback(message) {
         state.lastSource = 'browser'
         return result
       } catch (error) {
-        console.warn('Edge AI inference failed, falling back to Ollama:', error)
-        return runFallbackChat(message, `浏览器端 ${EDGE_MODEL.label} 推理失败，已自动回退到 Ollama。`)
+        console.warn('Edge AI inference failed, falling back to remote model:', error)
+        return runFallbackChat(message, `浏览器端 ${EDGE_MODEL.label} 推理失败，已自动切换到远程模型。`)
       }
     }
   }
 
-  return runFallbackChat(message, state.detail || '当前使用 Ollama 回退。')
+  return runFallbackChat(message, state.detail || '正在使用远程模型。')
 }
 
 export function useEdgeAiRuntime() {

@@ -132,13 +132,13 @@ const runtimeBadge = computed(() => {
     case 'consent-required':
       return '可启用本地'
     default:
-      return 'Ollama 回退'
+      return '远程模型'
   }
 })
 
 const replySourceLabel = computed(() => {
   if (replySource.value === 'browser') return '来源：浏览器端 Gemma 4 E2B'
-  if (replySource.value === 'ollama') return '来源：Ollama 回退'
+  if (replySource.value === 'ollama') return '来源：远程模型'
   return ''
 })
 
