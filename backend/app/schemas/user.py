@@ -1,6 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 from app.models.user import UserRole
+from app.models.shop import ShopStatus
 
 
 class UserRegister(BaseModel):
@@ -39,3 +40,45 @@ class RefreshRequest(BaseModel):
 
 class ApiKeyOut(BaseModel):
     api_key: str
+
+
+class UserFavoriteShopOut(BaseModel):
+    shop_id: int
+    shop_name: str
+    address: str
+    color: str
+    style: str | None
+    type: str | None
+    status: ShopStatus
+    score: float
+    lat: float | None
+    lng: float | None
+    favorited_at: datetime
+
+
+class UserCheckinShopOut(BaseModel):
+    shop_id: int
+    shop_name: str
+    address: str
+    color: str
+    style: str | None
+    type: str | None
+    status: ShopStatus
+    score: float
+    lat: float | None
+    lng: float | None
+    checked_in_at: datetime
+
+
+class UserReviewHistoryOut(BaseModel):
+    review_id: int
+    shop_id: int
+    shop_name: str
+    shop_color: str
+    shop_style: str | None
+    shop_type: str | None
+    shop_status: ShopStatus
+    shop_score: float
+    content: str
+    score: float | None
+    created_at: datetime

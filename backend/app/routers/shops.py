@@ -98,6 +98,8 @@ async def list_shops(
     color: str | None = Query(None),
     status: ShopStatus | None = Query(None),
     style: str | None = Query(None),
+    limit: int | None = Query(None, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     q = select(Shop)
@@ -107,6 +109,8 @@ async def list_shops(
         q = q.where(Shop.status == status)
     if style:
         q = q.where(Shop.style == style)
+    if limit is not None:
+        q = q.offset(offset).limit(limit)
     result = await db.execute(q)
     return result.scalars().all()
 

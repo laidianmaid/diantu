@@ -5,14 +5,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.shop import Shop
+from app.models.user import User
 from app.services import ollama as ollama_svc
 from app.services.ai_tools import AGENT_TOOLS, ToolExecutionContext, execute_agent_tool
 
 MAX_AGENT_TURNS = 10
 
 
-def build_system_prompt() -> str:
+def build_system_prompt(user: User | None = None) -> str:
     tools_json = json.dumps(AGENT_TOOLS, ensure_ascii=False, indent=2)
+    auth_note = "当前用户已登录，可在必要时获取用户态 API 文档并调用允许的只读 API。" if user else "当前用户未登录，只能使用公开能力；任何需要登录态的 API 都不可用。"
     return f"""你是「来点妹抖吗？」地图助手。
 
 你必须只输出一个 JSON 对象，不要输出 markdown，不要输出解释，不要输出额外文本。
@@ -36,19 +38,34 @@ def build_system_prompt() -> str:
 规则：
 - 需要店铺数据时，优先调用工具，不要编造店铺信息。
 - 最终答案里的 highlighted_shop_ids 必须只包含真实店铺 ID。
+- {auth_note}
+- 如果用户提到商圈、区域、地标、大学、景点或地铁站附近/一带/周边的店（例如“五角场”“徐家汇”“静安寺”“人民广场”），优先调用 get_nearby_shops_by_place，不要先把这些地点词直接拿去做 search_shops_by_keywords。
+- search_shops_by_keywords 更适合风格、偏好、店名片段、地址片段等字符串召回；它不是地点附近检索的首选工具。
+- 优先使用现有专用工具（附近、关键词、详情、top shops）。只有当这些工具不足以回答用户问题时，才调用 get_available_api_docs。
+- 如果决定走 API 路线，先调用 get_available_api_docs 缩小到相关接口，再调用 call_available_api；不要在没拿到文档时盲调 API。
+- call_available_api 首版只允许只读 API；不要尝试任何写操作。
+- 如果某个工具返回空 shops，但用户的问题仍然可能通过别的相关工具回答，不要立刻下结论说没有；先尝试另一种合理工具。
 - 如果用户问离自己最近，但工具返回 USER_LOCATION_REQUIRED，你应当直接给出最终答案，提示用户先点击定位；如果定位失败，请提示用户重试，并告诉用户也可以改问区域/地铁站。
 - 如果地点搜索返回 PLACE_NOT_FOUND，也应直接给出最终答案，引导用户换更具体的地标、商圈或地铁站名称。
 - 如果工具结果已经足够，请直接结束，不要无意义循环。
 - 最多允许 {MAX_AGENT_TURNS} 轮模型决策。
+
+示例：
+- 用户说“推荐几家五角场的女仆店”时，应优先调用：
+  {{"type":"tool_call","tool_name":"get_nearby_shops_by_place","arguments":{{"place_query":"五角场","limit":5}}}}
+- 用户说“我喜欢安静一点、适合聊天的店”时，更适合先调用：
+  {{"type":"tool_call","tool_name":"search_shops_by_keywords","arguments":{{"keywords":["安静","聊天"],"limit":8}}}}
+- 用户说“我收藏过哪些店”而现有专用工具无法回答时，应先调用：
+  {{"type":"tool_call","tool_name":"get_available_api_docs","arguments":{{"keyword":"收藏","tag":"users","detail_level":"compact","limit":5}}}}
 
 可用工具：
 {tools_json}
 """
 
 
-def get_agent_config() -> dict:
+def get_agent_config(user: User | None = None) -> dict:
     return {
-        "system_prompt": build_system_prompt(),
+        "system_prompt": build_system_prompt(user),
         "tools": AGENT_TOOLS,
         "max_turns": MAX_AGENT_TURNS,
     }
@@ -126,12 +143,14 @@ async def run_agentic_loop(
     message: str,
     db: AsyncSession,
     user_location: tuple[float, float] | None = None,
+    user: User | None = None,
+    access_token: str | None = None,
 ) -> dict:
     messages = [
-        {"role": "system", "content": build_system_prompt()},
+        {"role": "system", "content": build_system_prompt(user)},
         {"role": "user", "content": _build_initial_user_message(message, user_location)},
     ]
-    context = ToolExecutionContext(user_location=user_location)
+    context = ToolExecutionContext(user_location=user_location, user=user, access_token=access_token)
 
     for _ in range(MAX_AGENT_TURNS):
         raw_text = await ollama_svc.chat(messages)

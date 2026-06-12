@@ -33,3 +33,35 @@ class AiToolExecuteResponse(BaseModel):
     ok: bool
     result: dict | list | None = None
     error: str | None = None
+
+
+class AiApiFieldDoc(BaseModel):
+    name: str
+    type: str
+    required: bool = False
+    description: str
+    enum: list[str] = []
+    example: str | int | float | bool | None = None
+
+
+class AiApiEndpointDoc(BaseModel):
+    id: str
+    method: str
+    path: str
+    tag: str
+    summary: str
+    description: str
+    auth_required: bool
+    side_effect: bool
+    path_params: list[AiApiFieldDoc] = []
+    query_params: list[AiApiFieldDoc] = []
+    body_schema: dict | None = None
+    response_shape: dict | list | str | None = None
+    notes: list[str] = []
+    ai_usage_examples: list[dict] = []
+
+
+class AiApiDocsResponse(BaseModel):
+    detail_level: str
+    total: int
+    endpoints: list[AiApiEndpointDoc]

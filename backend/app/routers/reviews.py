@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -33,12 +33,20 @@ def _review_out(r: Review) -> ReviewOut:
 
 
 @router.get("/shops/{shop_id}/reviews", response_model=list[ReviewOut])
-async def list_reviews(shop_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
+async def list_reviews(
+    shop_id: int,
+    limit: int | None = Query(None, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    query = (
         select(Review)
         .where(Review.shop_id == shop_id, Review.parent_id.is_(None))
         .order_by(Review.created_at.desc())
     )
+    if limit is not None:
+        query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
     reviews = result.scalars().all()
     # Eagerly load relations
     for r in reviews:

@@ -5,6 +5,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.shop import Shop
+from app.models.user import User
+from app.services.ai_api_catalog import call_available_api, get_available_api_docs
 from app.services.geocoding import geocode_address
 
 MAX_TOOL_LIMIT = 20
@@ -36,7 +38,7 @@ AGENT_TOOLS = [
     },
     {
         "name": "get_nearby_shops_by_place",
-        "description": "根据地点名称先解析地点，再返回附近的 N 家店。",
+        "description": "根据地点名称先解析地点，再返回附近的 N 家店。用户提到商圈、区域、地标、大学、景点或地铁站（如五角场、徐家汇、静安寺、人民广场）时，优先调用这个工具。",
         "arguments_schema": {
             "type": "object",
             "required": ["place_query"],
@@ -49,7 +51,7 @@ AGENT_TOOLS = [
     },
     {
         "name": "search_shops_by_keywords",
-        "description": "按名称、地址、风格、描述、类型做字符串搜索，适合根据用户喜好先粗召回候选店铺。",
+        "description": "按名称、地址、风格、描述、类型做字符串搜索，适合根据用户喜好、店名片段、风格标签先粗召回候选店铺。不要把商圈、区域、地标、大学或地铁站名称优先当作这个工具的关键词；这类地点词优先用 get_nearby_shops_by_place。",
         "arguments_schema": {
             "type": "object",
             "required": ["keywords"],
@@ -83,12 +85,42 @@ AGENT_TOOLS = [
             },
         },
     },
+    {
+        "name": "get_available_api_docs",
+        "description": "当现有专用工具不足时，按关键词、标签、方法或路径前缀获取当前用户可访问的 AI 专用 API 文档。优先先用 compact 文档缩小范围。",
+        "arguments_schema": {
+            "type": "object",
+            "properties": {
+                "keyword": {"type": "string"},
+                "tag": {"type": "string"},
+                "method": {"type": "string"},
+                "path_prefix": {"type": "string"},
+                "detail_level": {"type": "string", "enum": ["compact", "full"]},
+                "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TOOL_LIMIT},
+            },
+        },
+    },
+    {
+        "name": "call_available_api",
+        "description": "在当前用户登录态下调用 AI 专用文档中允许的只读 API。首版只允许 GET，并且 path 必须来自 get_available_api_docs 返回的文档。",
+        "arguments_schema": {
+            "type": "object",
+            "required": ["method", "path"],
+            "properties": {
+                "method": {"type": "string", "enum": ["GET"]},
+                "path": {"type": "string"},
+                "query": {"type": "object"},
+            },
+        },
+    },
 ]
 
 
 @dataclass
 class ToolExecutionContext:
     user_location: tuple[float, float] | None = None
+    user: User | None = None
+    access_token: str | None = None
 
 
 def _clamp_limit(raw_limit, default: int = 5) -> int:
@@ -264,6 +296,29 @@ async def _tool_get_shop_details(db: AsyncSession, arguments: dict) -> dict:
     return {"shops": [_shop_detail(shop) for shop in ordered]}
 
 
+async def _tool_get_available_api_docs(arguments: dict, context: ToolExecutionContext) -> dict:
+    return get_available_api_docs(
+        context.user,
+        keyword=str(arguments.get("keyword") or "").strip() or None,
+        tag=str(arguments.get("tag") or "").strip() or None,
+        method=str(arguments.get("method") or "").strip() or None,
+        path_prefix=str(arguments.get("path_prefix") or "").strip() or None,
+        detail_level=str(arguments.get("detail_level") or "compact").strip() or "compact",
+        limit=arguments.get("limit"),
+    )
+
+
+async def _tool_call_available_api(arguments: dict, context: ToolExecutionContext) -> dict:
+    return await call_available_api(
+        user=context.user,
+        access_token=context.access_token,
+        method=str(arguments.get("method") or "").strip(),
+        path=str(arguments.get("path") or "").strip(),
+        query=arguments.get("query"),
+        body=arguments.get("body"),
+    )
+
+
 async def execute_agent_tool(
     tool_name: str,
     arguments: dict,
@@ -280,5 +335,9 @@ async def execute_agent_tool(
         return await _tool_search_shops_by_keywords(db, arguments)
     if tool_name == "get_shop_details":
         return await _tool_get_shop_details(db, arguments)
+    if tool_name == "get_available_api_docs":
+        return await _tool_get_available_api_docs(arguments, context)
+    if tool_name == "call_available_api":
+        return await _tool_call_available_api(arguments, context)
 
     raise ValueError("UNKNOWN_TOOL")
