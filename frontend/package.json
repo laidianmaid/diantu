@@ -10,6 +10,7 @@
   "dependencies": {
     "@wllama/wllama": "^3.4.1",
     "axios": "^1.7.9",
+    "jsonrepair": "^3.8.0",
     "pinia": "^2.3.0",
     "pinyin-pro": "^3.28.1",
     "vue": "^3.5.13",

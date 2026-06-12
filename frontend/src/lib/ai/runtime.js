@@ -1,18 +1,24 @@
 import { reactive, readonly } from 'vue'
 
 import { aiApi } from '../../api'
+import { useShopsStore } from '../../stores/shops'
 import {
-  EDGE_AI_PROMPT,
   EDGE_MODEL,
-  EDGE_MODEL_PRIMARY_URL,
   EDGE_MODEL_CHAT_PARAMS,
   EDGE_MODEL_LOAD_PARAMS,
+  EDGE_MODEL_PRIMARY_URL,
   EDGE_MODEL_REQUIRES_SPLIT,
   EDGE_MODEL_SIZE_LABEL,
   EDGE_MODEL_URLS_VALID,
   WLLAMA_CONFIG_PATHS,
 } from './config'
-import { buildEdgeUserPrompt, parseAiReply } from './prompt'
+import {
+  buildFormatErrorMessage,
+  buildToolResultMessage,
+  filterExistingHighlightedIds,
+  normalizeFinalAnswer,
+  parseAgentJson,
+} from './prompt'
 
 const EDGE_AI_CONSENT_KEY = 'edge_ai_download_approved'
 
@@ -27,6 +33,7 @@ const state = reactive({
 let detectPromise = null
 let warmupPromise = null
 let wllamaModulePromise = null
+let agentConfigPromise = null
 let wllama = null
 
 async function loadWllamaModule() {
@@ -34,6 +41,13 @@ async function loadWllamaModule() {
     wllamaModulePromise = import('@wllama/wllama')
   }
   return wllamaModulePromise
+}
+
+async function getAgentConfig() {
+  if (!agentConfigPromise) {
+    agentConfigPromise = aiApi.agentConfig().then(({ data }) => data)
+  }
+  return agentConfigPromise
 }
 
 function isDesktopChromium() {
@@ -145,6 +159,7 @@ async function warmupEdgeModel({ interactive = false } = {}) {
         wllama = await createWllama()
       }
 
+      await getAgentConfig()
       await wllama.loadModelFromUrl(EDGE_MODEL_PRIMARY_URL, {
         ...EDGE_MODEL_LOAD_PARAMS,
         progressCallback: ({ loaded, total }) => {
@@ -152,15 +167,6 @@ async function warmupEdgeModel({ interactive = false } = {}) {
           state.downloadProgress = Math.max(0, Math.min(100, Math.round((loaded / total) * 100)))
           state.detail = `正在下载并预热浏览器端 ${EDGE_MODEL.label}… ${state.downloadProgress}%`
         },
-      })
-
-      await wllama.createChatCompletion({
-        messages: [
-          { role: 'system', content: EDGE_AI_PROMPT },
-          { role: 'user', content: '请只回复“好”。' },
-        ],
-        max_tokens: 8,
-        temperature: 0,
       })
 
       state.ready = true
@@ -185,25 +191,95 @@ async function warmupEdgeModel({ interactive = false } = {}) {
   return warmupPromise
 }
 
-async function runEdgeChat(message) {
-  const { data } = await aiApi.context()
-  const response = await wllama.createChatCompletion({
-    messages: [
-      { role: 'system', content: EDGE_AI_PROMPT },
-      { role: 'user', content: buildEdgeUserPrompt(message, data.shop_context) },
-    ],
-    ...EDGE_MODEL_CHAT_PARAMS,
+function buildInitialUserMessage(message, userLocation) {
+  return JSON.stringify({
+    type: 'user_request',
+    message,
+    user_location: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null,
   })
+}
 
-  const replyFull = response?.choices?.[0]?.message?.content || ''
+async function executeBrowserAgentLoop(message) {
+  const agentConfig = await getAgentConfig()
+  const shopsStore = useShopsStore()
+  const userLocation = shopsStore.userLocation
+
+  const messages = [
+    { role: 'system', content: agentConfig.system_prompt },
+    { role: 'user', content: buildInitialUserMessage(message, userLocation) },
+  ]
+
+  for (let turn = 0; turn < agentConfig.max_turns; turn += 1) {
+    const response = await wllama.createChatCompletion({
+      messages,
+      ...EDGE_MODEL_CHAT_PARAMS,
+    })
+
+    const rawText = response?.choices?.[0]?.message?.content || ''
+    let payload
+    try {
+      payload = parseAgentJson(rawText)
+    } catch {
+      messages.push({ role: 'assistant', content: rawText })
+      messages.push({
+        role: 'user',
+        content: buildFormatErrorMessage('请只返回一个合法 JSON 对象，且只能是 tool_call 或 final_answer。'),
+      })
+      continue
+    }
+
+    if (payload.type === 'final_answer') {
+      const normalized = normalizeFinalAnswer(payload)
+      return {
+        ...normalized,
+        highlighted_shop_ids: filterExistingHighlightedIds(normalized.highlighted_shop_ids, shopsStore.shops),
+      }
+    }
+
+    if (payload.type !== 'tool_call') {
+      messages.push({ role: 'assistant', content: rawText })
+      messages.push({
+        role: 'user',
+        content: buildFormatErrorMessage('type 字段必须是 tool_call 或 final_answer。'),
+      })
+      continue
+    }
+
+    const toolName = String(payload.tool_name || '').trim()
+    const argumentsPayload = payload.arguments && typeof payload.arguments === 'object' ? payload.arguments : {}
+    const { data } = await aiApi.executeTool({
+      tool_name: toolName,
+      arguments: argumentsPayload,
+      user_location: userLocation,
+    })
+
+    messages.push({ role: 'assistant', content: rawText })
+    messages.push({
+      role: 'user',
+      content: buildToolResultMessage(data.tool_name, data.ok, data.result || null, data.error || null),
+    })
+  }
+
   return {
-    ...parseAiReply(replyFull),
+    reply: '我暂时没能稳定完成这次检索，请换一种问法，或缩小范围后再试。',
+    highlighted_shop_ids: [],
+  }
+}
+
+async function runEdgeChat(message) {
+  const result = await executeBrowserAgentLoop(message)
+  return {
+    ...result,
     source: 'browser',
   }
 }
 
 async function runFallbackChat(message, detail) {
-  const { data } = await aiApi.chat(message)
+  const shopsStore = useShopsStore()
+  const { data } = await aiApi.chat({
+    message,
+    user_location: shopsStore.userLocation,
+  })
   state.mode = state.ready ? 'ready' : 'fallback'
   state.detail = detail || state.detail
   state.lastSource = 'ollama'

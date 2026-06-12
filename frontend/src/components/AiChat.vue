@@ -21,6 +21,16 @@
     >
       <div v-if="replySourceLabel" class="mb-1 text-[11px] text-gray-400">{{ replySourceLabel }}</div>
       {{ reply }}
+      <div v-if="highlightedShops.length" class="mt-2 flex flex-wrap gap-2">
+        <button
+          v-for="shop in highlightedShops"
+          :key="shop.id"
+          @click="selectSuggestion(shop)"
+          class="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700 hover:bg-amber-100 transition"
+        >
+          {{ shop.name }}
+        </button>
+      </div>
     </div>
 
     <!-- Input row -->
@@ -117,6 +127,10 @@ const replySourceLabel = computed(() => {
   if (replySource.value === 'ollama') return '来源：Ollama 回退'
   return ''
 })
+
+const highlightedShops = computed(() =>
+  shopsStore.shops.filter(shop => shopsStore.highlightedIds.includes(shop.id))
+)
 
 function matchShop(shop, query) {
   if (!query) return false

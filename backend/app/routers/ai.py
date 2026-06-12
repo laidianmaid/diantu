@@ -1,29 +1,57 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.core.database import get_db
-from app.models.shop import Shop
-from app.schemas.ai import AiChatRequest, AiChatResponse, AiContextResponse
-from app.services.ai_context import build_shop_context
-from app.services import ollama as ollama_svc
+from app.routers.deps import rate_limit_ai_chat, rate_limit_ai_config, rate_limit_ai_tools
+from app.schemas.ai import (
+    AiAgentConfigResponse,
+    AiChatRequest,
+    AiChatResponse,
+    AiToolExecuteRequest,
+    AiToolExecuteResponse,
+)
+from app.services.agentic_ai import get_agent_config, run_agentic_loop
+from app.services.ai_tools import ToolExecutionContext, execute_agent_tool
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
-async def _get_shop_context(db: AsyncSession) -> str:
-    result = await db.execute(select(Shop))
-    shops = result.scalars().all()
-    return build_shop_context(shops)
+@router.get("/agent/config", response_model=AiAgentConfigResponse)
+async def ai_agent_config(_: None = Depends(rate_limit_ai_config)):
+    return AiAgentConfigResponse(**get_agent_config())
 
 
-@router.get("/context", response_model=AiContextResponse)
-async def ai_context(db: AsyncSession = Depends(get_db)):
-    return AiContextResponse(shop_context=await _get_shop_context(db))
+@router.post("/tools/execute", response_model=AiToolExecuteResponse)
+async def ai_tools_execute(
+    body: AiToolExecuteRequest,
+    _: None = Depends(rate_limit_ai_tools),
+    db: AsyncSession = Depends(get_db),
+):
+    user_location = None
+    if body.user_location:
+        user_location = (body.user_location.lat, body.user_location.lng)
+
+    try:
+        result = await execute_agent_tool(
+            body.tool_name,
+            body.arguments,
+            db,
+            ToolExecutionContext(user_location=user_location),
+        )
+        return AiToolExecuteResponse(tool_name=body.tool_name, ok=True, result=result)
+    except ValueError as exc:
+        return AiToolExecuteResponse(tool_name=body.tool_name, ok=False, error=str(exc))
 
 
 @router.post("/chat", response_model=AiChatResponse)
-async def ai_chat(body: AiChatRequest, db: AsyncSession = Depends(get_db)):
-    context = await _get_shop_context(db)
-    reply, ids = await ollama_svc.chat(body.message, context)
-    return AiChatResponse(reply=reply, highlighted_shop_ids=ids)
+async def ai_chat(
+    body: AiChatRequest,
+    _: None = Depends(rate_limit_ai_chat),
+    db: AsyncSession = Depends(get_db),
+):
+    user_location = None
+    if body.user_location:
+        user_location = (body.user_location.lat, body.user_location.lng)
+
+    result = await run_agentic_loop(body.message, db, user_location=user_location)
+    return AiChatResponse(**result)

@@ -280,6 +280,7 @@ function locateUser() {
       if (status === 'complete') {
         // 获取正确的 GCJ-02 经纬度
         const { lng, lat } = result.position
+        shopsStore.setUserLocation({ lat, lng })
 
         map.setCenter([lng, lat])
         map.setZoom(15)
@@ -296,6 +297,7 @@ function locateUser() {
         })
         map.add(locationMarker)
       } else {
+        shopsStore.setUserLocation(null)
         console.warn('定位失败:', result.message)
       }
     })

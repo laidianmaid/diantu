@@ -13,3 +13,4 @@ python-multipart==0.0.18
 httpx==0.28.1
 aiofiles==24.1.0
 python-dotenv==1.0.1
+json-repair==0.39.1

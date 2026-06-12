@@ -1,26 +1,60 @@
-export function buildEdgeUserPrompt(message, shopContext) {
-  if (!shopContext) return message
-  return `当前地图上的女仆店信息：\n${shopContext}\n\n用户问题：${message}`
+import { jsonrepair } from 'jsonrepair'
+
+export function parseAgentJson(rawText) {
+  const repaired = jsonrepair(rawText)
+  const parsed = JSON.parse(repaired)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('MODEL_OUTPUT_NOT_OBJECT')
+  }
+  return parsed
 }
 
-export function parseAiReply(replyFull) {
-  const match = replyFull.match(/```highlight\s*(\{.*?\})\s*```/s)
-  if (!match) {
-    return {
-      reply: replyFull.trim(),
-      highlighted_shop_ids: [],
+export function normalizeFinalAnswer(payload) {
+  const reply = String(payload?.reply || '').trim()
+  if (!reply) {
+    throw new Error('FINAL_REPLY_REQUIRED')
+  }
+
+  const highlighted = Array.isArray(payload?.highlighted_shop_ids)
+    ? payload.highlighted_shop_ids
+    : []
+
+  return {
+    reply,
+    highlighted_shop_ids: highlighted
+      .map(id => Number(id))
+      .filter(id => Number.isInteger(id) && id > 0),
+  }
+}
+
+export function filterExistingHighlightedIds(highlightedIds, shops) {
+  const validIds = new Set((shops || []).map(shop => shop.id))
+  const result = []
+  const seen = new Set()
+
+  for (const shopId of highlightedIds || []) {
+    if (validIds.has(shopId) && !seen.has(shopId)) {
+      result.push(shopId)
+      seen.add(shopId)
     }
   }
 
-  let highlightedShopIds = []
-  try {
-    highlightedShopIds = JSON.parse(match[1]).shop_ids || []
-  } catch {
-    highlightedShopIds = []
-  }
+  return result
+}
 
-  return {
-    reply: replyFull.slice(0, match.index).trim(),
-    highlighted_shop_ids: highlightedShopIds,
-  }
+export function buildToolResultMessage(toolName, ok, result = null, error = null) {
+  return JSON.stringify({
+    type: 'tool_result',
+    tool_name: toolName,
+    ok,
+    result,
+    error,
+  })
+}
+
+export function buildFormatErrorMessage(message) {
+  return JSON.stringify({
+    type: 'format_error',
+    message,
+  })
 }

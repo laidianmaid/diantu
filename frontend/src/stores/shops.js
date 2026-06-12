@@ -6,6 +6,7 @@ export const useShopsStore = defineStore('shops', () => {
   const shops = ref([])
   const selectedShop = ref(null)
   const highlightedIds = ref([])
+  const userLocation = ref(null)
   const filters = ref({ color: null, status: null, style: null })
 
   async function fetchShops() {
@@ -28,7 +29,11 @@ export const useShopsStore = defineStore('shops', () => {
     fetchShops()
   }
 
+  function setUserLocation(location) {
+    userLocation.value = location
+  }
+
   fetchShops()
 
-  return { shops, selectedShop, highlightedIds, filters, fetchShops, selectShop, setHighlight, applyFilter }
+  return { shops, selectedShop, highlightedIds, userLocation, filters, fetchShops, selectShop, setHighlight, setUserLocation, applyFilter }
 })

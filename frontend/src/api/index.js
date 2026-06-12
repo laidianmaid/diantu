@@ -60,8 +60,9 @@ export const authApi = {
 }
 
 export const aiApi = {
-  chat: (message) => api.post('/ai/chat', { message }),
-  context: () => api.get('/ai/context'),
+  chat: (payload) => api.post('/ai/chat', payload),
+  agentConfig: () => api.get('/ai/agent/config'),
+  executeTool: (payload) => api.post('/ai/tools/execute', payload),
 }
 
 export default api
