@@ -16,6 +16,20 @@
     </div>
 
     <div
+      v-if="loading"
+      class="px-3 py-2 border-b border-gray-100 bg-amber-50/60"
+    >
+      <div class="flex items-center gap-2 text-xs text-amber-700">
+        <span class="inline-flex gap-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce [animation-delay:-0.3s]" />
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce [animation-delay:-0.15s]" />
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" />
+        </span>
+        <span>{{ loadingText }}</span>
+      </div>
+    </div>
+
+    <div
       v-if="reply"
       class="px-3 py-2 text-sm text-gray-700 max-h-32 overflow-y-auto border-b border-gray-100 whitespace-pre-wrap"
     >
@@ -131,6 +145,8 @@ const replySourceLabel = computed(() => {
 const highlightedShops = computed(() =>
   shopsStore.shops.filter(shop => shopsStore.highlightedIds.includes(shop.id))
 )
+
+const loadingText = computed(() => runtimeState.activity || 'AI 启动中，请稍候…')
 
 function matchShop(shop, query) {
   if (!query) return false

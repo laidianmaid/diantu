@@ -25,6 +25,7 @@ const EDGE_AI_CONSENT_KEY = 'edge_ai_download_approved'
 const state = reactive({
   mode: 'checking',
   detail: '正在检测浏览器端 AI 能力…',
+  activity: '',
   ready: false,
   downloadProgress: 0,
   lastSource: null,
@@ -203,6 +204,7 @@ async function executeBrowserAgentLoop(message) {
   const agentConfig = await getAgentConfig()
   const shopsStore = useShopsStore()
   const userLocation = shopsStore.userLocation
+  state.activity = 'AI 正在分析你的问题…'
 
   const messages = [
     { role: 'system', content: agentConfig.system_prompt },
@@ -210,6 +212,7 @@ async function executeBrowserAgentLoop(message) {
   ]
 
   for (let turn = 0; turn < agentConfig.max_turns; turn += 1) {
+    state.activity = `Thinking…`
     const response = await wllama.createChatCompletion({
       messages,
       ...EDGE_MODEL_CHAT_PARAMS,
@@ -247,6 +250,7 @@ async function executeBrowserAgentLoop(message) {
 
     const toolName = String(payload.tool_name || '').trim()
     const argumentsPayload = payload.arguments && typeof payload.arguments === 'object' ? payload.arguments : {}
+    state.activity = `AI 正在查询：${toolName || '工具调用'}…`
     const { data } = await aiApi.executeTool({
       tool_name: toolName,
       arguments: argumentsPayload,
@@ -260,6 +264,7 @@ async function executeBrowserAgentLoop(message) {
     })
   }
 
+  state.activity = ''
   return {
     reply: '我暂时没能稳定完成这次检索，请换一种问法，或缩小范围后再试。',
     highlighted_shop_ids: [],
@@ -268,6 +273,7 @@ async function executeBrowserAgentLoop(message) {
 
 async function runEdgeChat(message) {
   const result = await executeBrowserAgentLoop(message)
+  state.activity = ''
   return {
     ...result,
     source: 'browser',
@@ -276,12 +282,14 @@ async function runEdgeChat(message) {
 
 async function runFallbackChat(message, detail) {
   const shopsStore = useShopsStore()
+  state.activity = '正在等待 Ollama 回复…'
   const { data } = await aiApi.chat({
     message,
     user_location: shopsStore.userLocation,
   })
   state.mode = state.ready ? 'ready' : 'fallback'
   state.detail = detail || state.detail
+  state.activity = ''
   state.lastSource = 'ollama'
   return {
     reply: data.reply,
@@ -303,6 +311,7 @@ export async function chatWithEdgeFallback(message) {
     const ready = await warmupEdgeModel({ interactive: true })
     if (ready && wllama) {
       try {
+        state.activity = 'AI 正在整理本地推理结果…'
         const result = await runEdgeChat(message)
         state.mode = 'ready'
         state.detail = `当前优先使用浏览器端 ${EDGE_MODEL.label}。`
