@@ -252,7 +252,16 @@ async function executeBrowserAgentLoop(message) {
 
     const toolName = String(payload.tool_name || '').trim()
     const argumentsPayload = payload.arguments && typeof payload.arguments === 'object' ? payload.arguments : {}
-    state.activity = `AI 正在查询：${toolName || '工具调用'}…`
+    const TOOL_LABELS = {
+      get_top_shops: '查找热门妹抖店',
+      get_nearest_to_self: '查找附近妹抖店',
+      get_nearby_shops_by_place: '搜索地点周边店铺',
+      search_shops_by_keywords: '按关键词检索店铺',
+      get_shop_details: '获取店铺详情',
+      get_available_api_docs: '查阅可用接口文档',
+      call_available_api: '调用数据接口',
+    }
+    state.activity = `AI 正在${TOOL_LABELS[toolName] || '查询数据'}…`
     const { data } = await aiApi.executeTool({
       tool_name: toolName,
       arguments: argumentsPayload,
