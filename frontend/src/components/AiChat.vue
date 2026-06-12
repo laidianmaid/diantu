@@ -7,7 +7,7 @@
       </div>
       <button
         @click="edgeAi.toggleForceRemote()"
-        :disabled="runtimeState.mode === 'fallback'"
+        :disabled="runtimeState.mode === 'fallback' || runtimeState.mode === 'warming'"
         class="text-[11px] px-2 py-0.5 rounded-full border transition flex-shrink-0 disabled:cursor-not-allowed"
         :class="isEffectiveRemote
           ? 'border-gray-300 text-gray-400 enabled:hover:border-amber-400 enabled:hover:text-amber-600'

@@ -21,8 +21,6 @@ import {
   parseAgentJson,
 } from './prompt'
 
-const EDGE_AI_CONSENT_KEY = 'edge_ai_download_approved'
-
 const state = reactive({
   mode: 'checking',
   detail: '正在检测浏览器端 AI 能力…',
@@ -30,7 +28,7 @@ const state = reactive({
   ready: false,
   downloadProgress: 0,
   lastSource: null,
-  forceRemote: false,
+  forceRemote: true,
 })
 
 let detectPromise = null
@@ -79,21 +77,6 @@ function unsupportedBrowserDetail() {
   if (/Android/i.test(ua)) return '安卓设备请使用 Chrome 浏览器以启用浏览器端 AI，当前正在使用远程模型。'
   if (/(iPhone|iPad)/i.test(ua)) return 'iPhone/iPad 请使用 Safari 或 Chrome 浏览器以启用浏览器端 AI，当前正在使用远程模型。'
   return '当前浏览器不支持浏览器端 AI，请使用 Chrome 以启用本地推理，当前正在使用远程模型。'
-}
-
-function hasConsent() {
-  return localStorage.getItem(EDGE_AI_CONSENT_KEY) === 'accepted'
-}
-
-function requestConsent() {
-  if (hasConsent()) return true
-  const accepted = window.confirm(
-    `浏览器端 ${EDGE_MODEL.label} 首次使用需要下载 ${EDGE_MODEL_SIZE_LABEL} 模型，并占用较多显存/磁盘缓存。确认后将优先在本地运行，失败时自动切换到远程模型。是否继续？`
-  )
-  if (accepted) {
-    localStorage.setItem(EDGE_AI_CONSENT_KEY, 'accepted')
-  }
-  return accepted
 }
 
 async function createWllama() {
@@ -145,29 +128,18 @@ async function detectSupport() {
       return false
     }
 
-    state.mode = hasConsent() ? 'warming' : 'consent-required'
-    state.detail = hasConsent()
-      ? `已检测到浏览器端 ${EDGE_MODEL.label} 能力，正在准备本地模型…`
-      : `已检测到浏览器端 ${EDGE_MODEL.label} 能力，首次使用会下载 ${EDGE_MODEL_SIZE_LABEL} 模型。`
+    state.mode = 'available'
+    state.detail = `检测到浏览器端 ${EDGE_MODEL.label} 能力，可点击切换至本地模型。`
     return true
   })()
 
   return detectPromise
 }
 
-async function warmupEdgeModel({ interactive = false } = {}) {
+async function warmupEdgeModel() {
   const supported = await detectSupport()
   if (!supported) return false
   if (state.ready && wllama) return true
-
-  if (!hasConsent()) {
-    if (!interactive) return false
-    if (!requestConsent()) {
-      state.mode = 'fallback'
-      state.detail = '已取消浏览器端模型下载，当前继续使用远程模型。'
-      return false
-    }
-  }
 
   if (warmupPromise) return warmupPromise
 
@@ -336,25 +308,23 @@ async function runFallbackChat(message, detail) {
 }
 
 export async function primeEdgeAi() {
-  const supported = await detectSupport()
-  if (supported && hasConsent()) {
-    await warmupEdgeModel()
-  }
+  await detectSupport()
 }
 
 export async function chatWithEdgeFallback(message) {
   const supported = await detectSupport()
   if (supported && !state.forceRemote) {
-    const ready = await warmupEdgeModel({ interactive: true })
+    const ready = await warmupEdgeModel()
     if (ready && wllama) {
       try {
         state.activity = 'AI 正在整理本地推理结果…'
         const result = await runEdgeChat(message)
         state.mode = 'ready'
-        state.detail = `当前优先使用浏览器端 ${EDGE_MODEL.label}。`
+        state.detail = `当前使用浏览器端 ${EDGE_MODEL.label}。`
         state.lastSource = 'browser'
         return result
       } catch (error) {
+        state.forceRemote = true
         console.warn('Edge AI inference failed, falling back to remote model:', error)
         return runFallbackChat(message, `浏览器端 ${EDGE_MODEL.label} 推理失败，已自动切换到远程模型。`)
       }
@@ -364,8 +334,16 @@ export async function chatWithEdgeFallback(message) {
   return runFallbackChat(message, state.detail || '正在使用远程模型。')
 }
 
-export function toggleForceRemote() {
-  state.forceRemote = !state.forceRemote
+export async function toggleForceRemote() {
+  if (!state.forceRemote) {
+    state.forceRemote = true
+    return
+  }
+  state.forceRemote = false
+  const ready = await warmupEdgeModel()
+  if (!ready) {
+    state.forceRemote = true
+  }
 }
 
 export function useEdgeAiRuntime() {
