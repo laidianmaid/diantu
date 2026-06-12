@@ -3,14 +3,14 @@ set -euo pipefail
 
 if [[ $# -lt 3 || $# -gt 4 ]]; then
   echo "Usage: $0 <input.gguf> <output-dir> <public-base-url> [chunk-size]" >&2
-  echo "Example: $0 ./model.gguf ./frontend/public/models/gemma4 https://example.com/models/gemma4 512M" >&2
+  echo "Example: $0 ./model.gguf ./frontend/public/models/gemma4 https://example.com/models/gemma4 256M" >&2
   exit 1
 fi
 
 INPUT_GGUF="$1"
 OUTPUT_DIR="$2"
 PUBLIC_BASE_URL="${3%/}"
-CHUNK_SIZE="${4:-512M}"
+CHUNK_SIZE="${4:-256M}"
 
 if [[ ! -f "$INPUT_GGUF" ]]; then
   echo "Input file not found: $INPUT_GGUF" >&2
@@ -31,7 +31,10 @@ OUTPUT_PREFIX="$OUTPUT_DIR/$MODEL_PREFIX"
 
 llama-gguf-split --split-max-size "$CHUNK_SIZE" "$INPUT_GGUF" "$OUTPUT_PREFIX"
 
-mapfile -t SHARDS < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name "${MODEL_PREFIX}-*.gguf" | sort)
+SHARDS=()
+while IFS= read -r shard; do
+  SHARDS+=("$shard")
+done < <(find "$OUTPUT_DIR" -maxdepth 1 -type f -name "${MODEL_PREFIX}-*.gguf" | sort)
 
 if [[ ${#SHARDS[@]} -eq 0 ]]; then
   echo "No shard files were created." >&2

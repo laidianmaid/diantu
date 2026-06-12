@@ -62,7 +62,7 @@ OLLAMA_MODEL=gemma3
 
 # 浏览器端 Edge AI（可选）
 # 留空时，前端自动回退到 Ollama。
-# 如需启用浏览器端 Gemma 4 E2B，请先把 3.42GB 单文件 GGUF 切成多个 <=512MB 分片，
+# 如需启用浏览器端 Gemma 4 E2B，请先把 3.42GB 单文件 GGUF 切成多个 <=256MB 分片，
 # 并把分片 URL 按顺序用英文逗号拼接到 VITE_EDGE_MODEL_URLS。
 VITE_EDGE_MODEL_URLS=
 VITE_EDGE_MODEL_SIZE_BYTES=3416118240
@@ -165,7 +165,7 @@ scripts/split-edge-model.sh \
   https://your-domain.example/models/gemma4-e2b
 ```
 
-默认按 **512MB** 切分。切分后，把脚本输出的 `VITE_EDGE_MODEL_URLS=...` 复制到 `.env`，然后重新构建前端：
+默认按 **256MB** 切分。切分后，把脚本输出的 `VITE_EDGE_MODEL_URLS=...` 复制到 `.env`，然后重新构建前端：
 
 ```bash
 docker compose up --build
