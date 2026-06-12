@@ -81,6 +81,7 @@ function initMap() {
     clusterPopup.visible = false
   })
   map.on('zoomchange', scheduleRenderMarkers)
+  map.on('zoomend', scheduleRenderMarkers)
   map.on('moveend', scheduleRenderMarkers)
   scheduleRenderMarkers()
 }
@@ -191,31 +192,27 @@ function renderMarkers() {
   mapObjects = []
   clusterPopup.visible = false
 
-  const highlightSet = new Set(shopsStore.highlightedIds)
-  const hasFilter = highlightSet.size > 0
   const clusters = buildClusters()
 
   clusters.forEach(({ shops, lat, lng }) => {
     const isMulti = shops.length > 1
-    const isHighlighted = !hasFilter || shops.some(s => highlightSet.has(s.id))
 
     const colorCount = {}
     shops.forEach(s => { colorCount[s.color] = (colorCount[s.color] || 0) + 1 })
     const mainColor = Object.entries(colorCount).sort((a, b) => b[1] - a[1])[0][0]
     const fillColor = COLOR_HEX[mainColor] || '#6b7280'
 
-    const pinW = isMulti ? 22 : (isHighlighted ? 18 : 14)
+    const pinW = isMulti ? 22 : 18
     const pinH = Math.round(pinW * 4 / 3)
-    const opacity = isHighlighted ? 1 : 0.4
 
-    const pinSvg = makePinSvg(fillColor, { opacity, count: isMulti ? shops.length : 0, w: pinW })
+    const pinSvg = makePinSvg(fillColor, { count: isMulti ? shops.length : 0, w: pinW })
 
     const marker = new window.AMap.Marker({
       position: [lng, lat],
       content: pinSvg,
       // offset: 让 pin 底部尖端对齐坐标点
       offset: new window.AMap.Pixel(-pinW / 2, -pinH),
-      zIndex: isHighlighted ? 120 : 100,
+      zIndex: 100,
       cursor: 'pointer',
     })
 
@@ -230,29 +227,6 @@ function renderMarkers() {
     marker.on('click', handleClick)
     mapObjects.push(marker)
     map.add(marker)
-
-    // 单店名称标签（高亮时显示），pin 右侧中部
-    if (!isMulti && isHighlighted) {
-      const label = new window.AMap.Text({
-        text: shops[0].name,
-        position: [lng, lat],
-        anchor: 'middle-left',
-        offset: new window.AMap.Pixel(Math.round(pinW / 2) + 2, -Math.round(pinH * 0.59)),
-        zIndex: 130,
-        style: {
-          background: 'transparent',
-          border: 'none',
-          fontSize: '11px',
-          color: '#1f2937',
-          whiteSpace: 'nowrap',
-          cursor: 'pointer',
-          textShadow: '0 1px 3px rgba(255,255,255,0.9)',
-        },
-      })
-      label.on('click', handleClick)
-      mapObjects.push(label)
-      map.add(label)
-    }
   })
 }
 
@@ -262,6 +236,23 @@ function selectFromCluster(id) {
 }
 
 let locationMarker = null
+
+function focusShop(shop) {
+  if (!map || !shop?.lat || !shop?.lng) return
+
+  const lat = Number(shop.lat)
+  const lng = Number(shop.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+
+  if (map.getZoom() < 15) {
+    map.setZoomAndCenter(15, [lng, lat])
+    scheduleRenderMarkers()
+    return
+  }
+
+  map.panTo([lng, lat])
+  scheduleRenderMarkers()
+}
 
 function locateUser() {
   if (!map || !window.AMap) return
@@ -318,7 +309,10 @@ onUnmounted(() => {
 })
 
 watch(() => shopsStore.shops, scheduleRenderMarkers, { deep: true })
-watch(() => shopsStore.highlightedIds, scheduleRenderMarkers, { deep: true })
+watch(
+  () => [shopsStore.selectedShop?.id, shopsStore.selectedShop?.lat, shopsStore.selectedShop?.lng],
+  () => focusShop(shopsStore.selectedShop)
+)
 
-defineExpose({ locateUser })
+defineExpose({ locateUser, focusShop })
 </script>
