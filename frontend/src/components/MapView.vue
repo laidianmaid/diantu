@@ -227,6 +227,28 @@ function renderMarkers() {
     marker.on('click', handleClick)
     mapObjects.push(marker)
     map.add(marker)
+
+    if (!isMulti) {
+      const label = new window.AMap.Text({
+        text: shops[0].name,
+        position: [lng, lat],
+        anchor: 'middle-left',
+        offset: new window.AMap.Pixel(Math.round(pinW / 2) + 2, -Math.round(pinH * 0.59)),
+        zIndex: 110,
+        style: {
+          background: 'transparent',
+          border: 'none',
+          fontSize: '11px',
+          color: '#1f2937',
+          whiteSpace: 'nowrap',
+          cursor: 'pointer',
+          textShadow: '0 1px 3px rgba(255,255,255,0.9)',
+        },
+      })
+      label.on('click', handleClick)
+      mapObjects.push(label)
+      map.add(label)
+    }
   })
 }
 
