@@ -31,28 +31,28 @@ def build_system_prompt(user: User | None = None) -> str:
 2. 返回最终答案：
 {{
   "type": "final_answer",
-  "reply": "给用户看的自然语言回答",
+  "reply": "给用户看的自然语言回答。",
   "highlighted_shop_ids": [1, 2, 3]
 }}
 
 规则：
 - 需要店铺数据时，优先调用工具，不要编造店铺信息。
 - 最终答案里的 highlighted_shop_ids 必须只包含真实店铺 ID。
+- highlighted_shop_ids 必须包含推荐店铺的 ID；不要省略。
 - {auth_note}
-- 如果用户提到商圈、区域、地标、大学、景点或地铁站附近/一带/周边的店（例如“五角场”“徐家汇”“静安寺”“人民广场”），优先调用 get_nearby_shops_by_place，不要先把这些地点词直接拿去做 search_shops_by_keywords。
+- 如果用户提到商圈、区域、地标、大学、景点或地铁站附近/一带/周边的店（例如“五角场”“徐家汇”“静安寺”“长宁路（长宁）”“人民广场（人广）”），优先调用 get_nearby_shops_by_place，不要先把这些地点词直接拿去做 search_shops_by_keywords。
 - search_shops_by_keywords 更适合风格、偏好、店名片段、地址片段等字符串召回；它不是地点附近检索的首选工具。
 - 优先使用现有专用工具（附近、关键词、详情、top shops）。只有当这些工具不足以回答用户问题时，才调用 get_available_api_docs。
 - 如果决定走 API 路线，先调用 get_available_api_docs 缩小到相关接口，再调用 call_available_api；不要在没拿到文档时盲调 API。
 - call_available_api 首版只允许只读 API；不要尝试任何写操作。
 - 如果某个工具返回空 shops，但用户的问题仍然可能通过别的相关工具回答，不要立刻下结论说没有；先尝试另一种合理工具。
 - 如果用户问离自己最近，但工具返回 USER_LOCATION_REQUIRED，你应当直接给出最终答案，提示用户先点击定位；如果定位失败，请提示用户重试，并告诉用户也可以改问区域/地铁站。
-- 如果地点搜索返回 PLACE_NOT_FOUND，也应直接给出最终答案，引导用户换更具体的地标、商圈或地铁站名称。
-- 如果工具结果已经足够，请直接结束，不要无意义循环。
-- 最多允许 {MAX_AGENT_TURNS} 轮模型决策。
+- 如果地点搜索返回 PLACE_NOT_FOUND，尝试搜索地点别名。
+- 如果工具结果已经足够，请直接返回最终答案，不要无意义循环。
 
 示例：
-- 用户说“推荐几家五角场的女仆店”时，应优先调用：
-  {{"type":"tool_call","tool_name":"get_nearby_shops_by_place","arguments":{{"place_query":"五角场","limit":5}}}}
+- 用户说“推荐几家人广的女仆店”时，应优先调用：
+  {{"type":"tool_call","tool_name":"get_nearby_shops_by_place","arguments":{{"place_query":"人民广场","limit":5}}}}
 - 用户说“我喜欢安静一点、适合聊天的店”时，更适合先调用：
   {{"type":"tool_call","tool_name":"search_shops_by_keywords","arguments":{{"keywords":["安静","聊天"],"limit":8}}}}
 - 用户说“我收藏过哪些店”而现有专用工具无法回答时，应先调用：
@@ -79,6 +79,52 @@ def _repair_and_parse_json(raw_text: str) -> dict:
     return parsed
 
 
+def _extract_shop_ids_from_payload(payload, *, limit: int = 10) -> list[int]:
+    if limit <= 0:
+        return []
+
+    results = []
+    seen = set()
+
+    def push(raw_id):
+        try:
+            shop_id = int(raw_id)
+        except (TypeError, ValueError):
+            return
+        if shop_id <= 0 or shop_id in seen:
+            return
+        seen.add(shop_id)
+        results.append(shop_id)
+
+    def walk(value):
+        if len(results) >= limit or value is None:
+            return
+        if isinstance(value, dict):
+            if "id" in value:
+                push(value["id"])
+            if "shop_id" in value:
+                push(value["shop_id"])
+            for key in ("shops", "data", "items", "results"):
+                if key in value:
+                    walk(value[key])
+        elif isinstance(value, list):
+            for item in value:
+                if len(results) >= limit:
+                    break
+                walk(item)
+
+    walk(payload)
+    return results
+
+
+def _derive_highlighted_ids_from_tool_history(tool_history: list[dict]) -> list[int]:
+    for tool_result in reversed(tool_history):
+        extracted = _extract_shop_ids_from_payload(tool_result)
+        if extracted:
+            return extracted
+    return []
+
+
 async def _validate_highlighted_ids(db: AsyncSession, highlighted_ids: list[int]) -> list[int]:
     if not highlighted_ids:
         return []
@@ -95,7 +141,11 @@ async def _validate_highlighted_ids(db: AsyncSession, highlighted_ids: list[int]
     return ordered_ids
 
 
-async def _normalize_final_answer(payload: dict, db: AsyncSession) -> dict:
+async def _normalize_final_answer(
+    payload: dict,
+    db: AsyncSession,
+    fallback_highlighted_ids: list[int] | None = None,
+) -> dict:
     reply = str(payload.get("reply") or "").strip()
     if not reply:
         raise ValueError("FINAL_REPLY_REQUIRED")
@@ -110,6 +160,9 @@ async def _normalize_final_answer(payload: dict, db: AsyncSession) -> dict:
             normalized_ids.append(int(shop_id))
         except (TypeError, ValueError):
             continue
+
+    if not normalized_ids:
+        normalized_ids = [int(shop_id) for shop_id in (fallback_highlighted_ids or [])]
 
     return {
         "reply": reply,
@@ -151,6 +204,7 @@ async def run_agentic_loop(
         {"role": "user", "content": _build_initial_user_message(message, user_location)},
     ]
     context = ToolExecutionContext(user_location=user_location, user=user, access_token=access_token)
+    successful_tool_history = []
 
     for _ in range(MAX_AGENT_TURNS):
         raw_text = await ollama_svc.chat(messages)
@@ -175,7 +229,11 @@ async def run_agentic_loop(
 
         output_type = model_output.get("type")
         if output_type == "final_answer":
-            return await _normalize_final_answer(model_output, db)
+            return await _normalize_final_answer(
+                model_output,
+                db,
+                fallback_highlighted_ids=_derive_highlighted_ids_from_tool_history(successful_tool_history),
+            )
 
         if output_type != "tool_call":
             messages.append({"role": "assistant", "content": raw_text})
@@ -200,6 +258,7 @@ async def run_agentic_loop(
 
         try:
             result = await execute_agent_tool(tool_name, arguments, db, context)
+            successful_tool_history.append(result)
             tool_feedback = _build_tool_result_message(tool_name, True, result=result)
         except ValueError as exc:
             tool_feedback = _build_tool_result_message(tool_name, False, error=str(exc))

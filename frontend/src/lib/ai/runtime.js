@@ -15,6 +15,7 @@ import {
 import {
   buildFormatErrorMessage,
   buildToolResultMessage,
+  deriveHighlightedIdsFromToolHistory,
   filterExistingHighlightedIds,
   normalizeFinalAnswer,
   parseAgentJson,
@@ -210,6 +211,7 @@ async function executeBrowserAgentLoop(message) {
     { role: 'system', content: agentConfig.system_prompt },
     { role: 'user', content: buildInitialUserMessage(message, userLocation) },
   ]
+  const successfulToolHistory = []
 
   for (let turn = 0; turn < agentConfig.max_turns; turn += 1) {
     state.activity = `Thinking…`
@@ -232,7 +234,7 @@ async function executeBrowserAgentLoop(message) {
     }
 
     if (payload.type === 'final_answer') {
-      const normalized = normalizeFinalAnswer(payload)
+      const normalized = normalizeFinalAnswer(payload, deriveHighlightedIdsFromToolHistory(successfulToolHistory))
       return {
         ...normalized,
         highlighted_shop_ids: filterExistingHighlightedIds(normalized.highlighted_shop_ids, shopsStore.shops),
@@ -256,6 +258,9 @@ async function executeBrowserAgentLoop(message) {
       arguments: argumentsPayload,
       user_location: userLocation,
     })
+    if (data.ok) {
+      successfulToolHistory.push(data.result || null)
+    }
 
     messages.push({ role: 'assistant', content: rawText })
     messages.push({
