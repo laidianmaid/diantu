@@ -126,13 +126,13 @@ const COLOR_LABEL = {
 const runtimeBadge = computed(() => {
   switch (runtimeState.mode) {
     case 'ready':
-      return '本地 Gemma'
+      return '本地 AI'
     case 'warming':
       return runtimeState.downloadProgress ? `预热中 ${runtimeState.downloadProgress}%` : '预热中'
     case 'consent-required':
-      return '可启用本地'
+      return '可启用本地 AI'
     default:
-      return '远程模型'
+      return '远程 AI'
   }
 })
 
