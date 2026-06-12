@@ -254,7 +254,7 @@ function focusShop(shop) {
   scheduleRenderMarkers()
 }
 
-function locateUser() {
+function locateUser({ zoomToUser = true } = {}) {
   if (!map || !window.AMap) return
 
   // 加载定位插件
@@ -273,8 +273,11 @@ function locateUser() {
         const { lng, lat } = result.position
         shopsStore.setUserLocation({ lat, lng })
 
-        map.setCenter([lng, lat])
-        map.setZoom(15)
+        if (zoomToUser) {
+          map.setZoomAndCenter(15, [lng, lat])
+        } else {
+          map.setCenter([lng, lat])
+        }
 
         if (locationMarker) map.remove(locationMarker)
         locationMarker = new window.AMap.CircleMarker({
@@ -300,6 +303,7 @@ onMounted(async () => {
   window.addEventListener('resize', updateViewportFlags)
   await loadAmapScript()
   initMap()
+  locateUser({ zoomToUser: false })
 })
 
 onUnmounted(() => {
