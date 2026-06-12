@@ -498,13 +498,13 @@ async def call_available_api(
         response = await client.request(normalized_method, path, params=validated_query, headers=headers)
 
     if response.status_code >= 400:
-        detail = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
+        raw = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
         return {
             "ok": False,
             "status_code": response.status_code,
             "method": normalized_method,
             "path": path,
-            "error": detail,
+            "error": _trim_response_payload(raw),
         }
 
     data = response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text
