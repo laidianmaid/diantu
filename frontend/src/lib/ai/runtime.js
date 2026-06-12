@@ -212,9 +212,11 @@ async function executeBrowserAgentLoop(message) {
     { role: 'user', content: buildInitialUserMessage(message, userLocation) },
   ]
   const successfulToolHistory = []
+  let lastWasToolCall = false
 
   for (let turn = 0; turn < agentConfig.max_turns; turn += 1) {
-    state.activity = `Thinking…`
+    if (!lastWasToolCall) state.activity = `Thinking…`
+    lastWasToolCall = false
     const response = await wllama.createChatCompletion({
       messages,
       ...EDGE_MODEL_CHAT_PARAMS,
@@ -262,6 +264,7 @@ async function executeBrowserAgentLoop(message) {
       call_available_api: '调用数据接口',
     }
     state.activity = `AI 正在${TOOL_LABELS[toolName] || '查询数据'}…`
+    lastWasToolCall = true
     const { data } = await aiApi.executeTool({
       tool_name: toolName,
       arguments: argumentsPayload,
