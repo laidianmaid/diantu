@@ -37,7 +37,8 @@ def build_system_prompt(user: User | None = None) -> str:
 
 规则：
 - 需要店铺数据时，优先调用工具，不要编造店铺信息。
-- 最终答案里的 highlighted_shop_ids 必须只包含真实店铺 ID，只要有推荐就填入。
+- 最终答案里的 highlighted_shop_ids 必须只包含真实店铺 ID。
+- 店铺 ID 只在 highlighted_shop_ids 里列出，不要出现在 reply 里。
 - {auth_note}
 - 如果用户提到商圈、区域、地标、大学、景点或地铁站附近/一带/周边的店（例如“五角场”“徐家汇”“静安寺”“长宁路（长宁）”“人民广场（人广）”），优先调用 get_nearby_shops_by_place，不要先把这些地点词直接拿去做 search_shops_by_keywords。
 - search_shops_by_keywords 更适合风格、偏好、店名片段、地址片段等字符串召回；它不是地点附近检索的首选工具。
