@@ -162,10 +162,10 @@ chmod +x scripts/split-edge-model.sh
 scripts/split-edge-model.sh \
   /path/to/Huihui-gemma-4-E2B-it-qat-q4_0-unquantized-abliterated-Q4_K.gguf \
   ./frontend/public/models/gemma4-e2b \
-  https://your-domain.example/models/gemma4-e2b
+  https://your-domain.example
 ```
 
-默认按 **256MB** 切分。切分后，把脚本输出的 `VITE_EDGE_MODEL_URLS=...` 复制到 `.env`，然后重新构建前端：
+默认按 **256MB** 切分。如果输出目录位于 `frontend/public` 下，脚本会自动把对应公开子路径拼到你传入的站点根 URL 上。切分后，把脚本输出的 `VITE_EDGE_MODEL_URLS=...` 复制到 `.env`，然后重新构建前端：
 
 ```bash
 docker compose up --build

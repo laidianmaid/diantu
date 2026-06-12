@@ -9,11 +9,19 @@ const envModelUrls = (import.meta.env.VITE_EDGE_MODEL_URLS || '')
   .map(item => item.trim())
   .filter(Boolean)
 
+function isGgufUrl(url) {
+  return typeof url === 'string' && /\.gguf(?:\?.*)?$/i.test(url)
+}
+
 export const EDGE_MODEL = {
   label: 'Gemma 4 E2B',
   sizeBytes: Number(import.meta.env.VITE_EDGE_MODEL_SIZE_BYTES || 3416118240),
   urls: envModelUrls.length > 0 ? envModelUrls : DEFAULT_MODEL_URLS,
 }
+
+export const EDGE_MODEL_PRIMARY_URL = EDGE_MODEL.urls[0] || ''
+export const EDGE_MODEL_URLS_VALID =
+  EDGE_MODEL.urls.length > 0 && EDGE_MODEL.urls.every(isGgufUrl)
 
 export const EDGE_MODEL_SIZE_LABEL = '约 3.42GB'
 export const MAX_BROWSER_MODEL_FILE_BYTES = 2 * 1024 * 1024 * 1024

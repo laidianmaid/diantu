@@ -4,10 +4,12 @@ import { aiApi } from '../../api'
 import {
   EDGE_AI_PROMPT,
   EDGE_MODEL,
+  EDGE_MODEL_PRIMARY_URL,
   EDGE_MODEL_CHAT_PARAMS,
   EDGE_MODEL_LOAD_PARAMS,
   EDGE_MODEL_REQUIRES_SPLIT,
   EDGE_MODEL_SIZE_LABEL,
+  EDGE_MODEL_URLS_VALID,
   WLLAMA_CONFIG_PATHS,
 } from './config'
 import { buildEdgeUserPrompt, parseAiReply } from './prompt'
@@ -94,6 +96,12 @@ async function detectSupport() {
       return false
     }
 
+    if (!EDGE_MODEL_URLS_VALID || !EDGE_MODEL_PRIMARY_URL) {
+      state.mode = 'fallback'
+      state.detail = '浏览器端模型 URL 配置无效；请检查 VITE_EDGE_MODEL_URLS 是否为逗号分隔的 .gguf 分片地址，当前已回退到 Ollama。'
+      return false
+    }
+
     const adapter = await navigator.gpu.requestAdapter().catch(() => null)
     if (!adapter) {
       state.mode = 'fallback'
@@ -137,8 +145,7 @@ async function warmupEdgeModel({ interactive = false } = {}) {
         wllama = await createWllama()
       }
 
-      const modelSource = EDGE_MODEL.urls.length === 1 ? EDGE_MODEL.urls[0] : EDGE_MODEL.urls
-      await wllama.loadModelFromUrl(modelSource, {
+      await wllama.loadModelFromUrl(EDGE_MODEL_PRIMARY_URL, {
         ...EDGE_MODEL_LOAD_PARAMS,
         progressCallback: ({ loaded, total }) => {
           if (!total) return

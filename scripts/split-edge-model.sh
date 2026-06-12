@@ -11,6 +11,9 @@ INPUT_GGUF="$1"
 OUTPUT_DIR="$2"
 PUBLIC_BASE_URL="${3%/}"
 CHUNK_SIZE="${4:-256M}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+FRONTEND_PUBLIC_DIR="$REPO_ROOT/frontend/public"
 
 if [[ ! -f "$INPUT_GGUF" ]]; then
   echo "Input file not found: $INPUT_GGUF" >&2
@@ -28,6 +31,15 @@ mkdir -p "$OUTPUT_DIR"
 INPUT_BASENAME="$(basename "$INPUT_GGUF")"
 MODEL_PREFIX="${INPUT_BASENAME%.gguf}"
 OUTPUT_PREFIX="$OUTPUT_DIR/$MODEL_PREFIX"
+OUTPUT_DIR_ABS="$(cd "$OUTPUT_DIR" && pwd -P)"
+
+if [[ "$OUTPUT_DIR_ABS" == "$FRONTEND_PUBLIC_DIR" || "$OUTPUT_DIR_ABS" == "$FRONTEND_PUBLIC_DIR/"* ]]; then
+  PUBLIC_RELATIVE_PATH="${OUTPUT_DIR_ABS#"$FRONTEND_PUBLIC_DIR"}"
+  PUBLIC_RELATIVE_PATH="${PUBLIC_RELATIVE_PATH#/}"
+  if [[ -n "$PUBLIC_RELATIVE_PATH" && "$PUBLIC_BASE_URL" != */"$PUBLIC_RELATIVE_PATH" ]]; then
+    PUBLIC_BASE_URL="${PUBLIC_BASE_URL}/${PUBLIC_RELATIVE_PATH}"
+  fi
+fi
 
 llama-gguf-split --split-max-size "$CHUNK_SIZE" "$INPUT_GGUF" "$OUTPUT_PREFIX"
 
@@ -55,6 +67,7 @@ SIZE_BYTES="$(wc -c < "$INPUT_GGUF" | tr -d ' ')"
 echo
 echo "Add these lines to .env:"
 echo "VITE_EDGE_MODEL_SIZE_BYTES=${SIZE_BYTES}"
+echo "# Public shard base: ${PUBLIC_BASE_URL}"
 printf 'VITE_EDGE_MODEL_URLS='
 (
   IFS=,
