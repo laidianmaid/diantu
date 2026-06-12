@@ -73,7 +73,7 @@ function initMap() {
   if (!window.AMap) return
   map = new window.AMap.Map(mapContainer.value, {
     center: [121.473701, 31.230416],
-    zoom: 14,
+    zoom: 13,
   })
   map.on('click', () => {
     if (Date.now() < suppressMapClickUntil) return
