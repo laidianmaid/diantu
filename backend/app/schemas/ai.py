@@ -1,6 +1,19 @@
 from pydantic import BaseModel, Field
 
 
+class AiCompletionMessage(BaseModel):
+    role: str
+    content: str
+
+
+class AiCompletionRequest(BaseModel):
+    messages: list[AiCompletionMessage]
+
+
+class AiCompletionResponse(BaseModel):
+    content: str
+
+
 class AiLocation(BaseModel):
     lat: float
     lng: float

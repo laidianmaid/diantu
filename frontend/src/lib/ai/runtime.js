@@ -129,7 +129,7 @@ async function detectSupport() {
     }
 
     state.mode = 'available'
-    state.detail = `检测到浏览器端 ${EDGE_MODEL.label} 能力，可点击切换至本地模型。`
+    state.detail = `检测到浏览器端 AI 能力，可点击切换至本地模型。`
     return true
   })()
 
@@ -289,21 +289,109 @@ async function runEdgeChat(message) {
   }
 }
 
-async function runFallbackChat(message, detail) {
+async function executeRemoteAgentLoop(message) {
+  const agentConfig = await getAgentConfig()
   const shopsStore = useShopsStore()
-  state.activity = '正在等待远程模型回复…'
-  const { data } = await aiApi.chat({
-    message,
-    user_location: shopsStore.userLocation,
-  })
-  state.mode = state.ready ? 'ready' : 'fallback'
-  state.detail = detail || state.detail
+  const userLocation = shopsStore.userLocation
+  state.activity = 'Thinking…'
+
+  const messages = [
+    { role: 'system', content: agentConfig.system_prompt },
+    { role: 'user', content: buildInitialUserMessage(message, userLocation) },
+  ]
+  const successfulToolHistory = []
+  let lastWasToolCall = false
+
+  for (let turn = 0; turn < agentConfig.max_turns; turn += 1) {
+    if (!lastWasToolCall) state.activity = 'Thinking…'
+    lastWasToolCall = false
+    const { data: completion } = await aiApi.chatCompletion(messages)
+    const rawText = completion.content || ''
+
+    let payload
+    try {
+      payload = parseAgentJson(rawText)
+    } catch {
+      messages.push({ role: 'assistant', content: rawText })
+      messages.push({
+        role: 'user',
+        content: buildFormatErrorMessage('请只返回一个合法 JSON 对象，且只能是 tool_call 或 final_answer。'),
+      })
+      continue
+    }
+
+    if (payload.type === 'final_answer') {
+      const normalized = normalizeFinalAnswer(payload, deriveHighlightedIdsFromToolHistory(successfulToolHistory))
+      return {
+        ...normalized,
+        highlighted_shop_ids: filterExistingHighlightedIds(normalized.highlighted_shop_ids, shopsStore.shops),
+      }
+    }
+
+    if (payload.type !== 'tool_call') {
+      messages.push({ role: 'assistant', content: rawText })
+      messages.push({
+        role: 'user',
+        content: buildFormatErrorMessage('type 字段必须是 tool_call 或 final_answer。'),
+      })
+      continue
+    }
+
+    const toolName = String(payload.tool_name || '').trim()
+    const argumentsPayload = payload.arguments && typeof payload.arguments === 'object' ? payload.arguments : {}
+    const TOOL_LABELS = {
+      get_top_shops: '查找热门妹抖店',
+      get_nearest_to_self: '查找附近妹抖店',
+      get_nearby_shops_by_place: '搜索地点周边店铺',
+      search_shops_by_keywords: '按关键词检索店铺',
+      get_shop_details: '获取店铺详情',
+      get_available_api_docs: '查阅可用接口文档',
+      call_available_api: '调用数据接口',
+    }
+    state.activity = `AI 正在${TOOL_LABELS[toolName] || '查询数据'}…`
+    lastWasToolCall = true
+    const { data } = await aiApi.executeTool({
+      tool_name: toolName,
+      arguments: argumentsPayload,
+      user_location: userLocation,
+    })
+    if (data.ok) {
+      successfulToolHistory.push(data.result || null)
+    }
+
+    messages.push({ role: 'assistant', content: rawText })
+    messages.push({
+      role: 'user',
+      content: buildToolResultMessage(data.tool_name, data.ok, data.result || null, data.error || null),
+    })
+  }
+
   state.activity = ''
-  state.lastSource = 'ollama'
   return {
-    reply: data.reply,
-    highlighted_shop_ids: data.highlighted_shop_ids || [],
-    source: 'ollama',
+    reply: '我暂时没能稳定完成这次检索，请换一种问法，或缩小范围后再试。',
+    highlighted_shop_ids: [],
+  }
+}
+
+async function runFallbackChat(message, detail) {
+  try {
+    const result = await executeRemoteAgentLoop(message)
+    state.activity = ''
+    state.mode = state.ready ? 'ready' : 'fallback'
+    state.detail = detail || state.detail
+    state.lastSource = 'ollama'
+    return { ...result, source: 'ollama' }
+  } catch (error) {
+    console.warn('Remote agent loop failed:', error)
+    state.activity = ''
+    state.mode = state.ready ? 'ready' : 'fallback'
+    state.detail = detail || state.detail
+    state.lastSource = 'ollama'
+    return {
+      reply: '连接远程模型失败，请稍后再试。',
+      highlighted_shop_ids: [],
+      source: 'ollama',
+    }
   }
 }
 

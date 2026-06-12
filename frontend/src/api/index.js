@@ -61,6 +61,7 @@ export const authApi = {
 
 export const aiApi = {
   chat: (payload) => api.post('/ai/chat', payload),
+  chatCompletion: (messages) => api.post('/ai/chat/completion', { messages }),
   agentConfig: () => api.get('/ai/agent/config'),
   executeTool: (payload) => api.post('/ai/tools/execute', payload),
 }

@@ -14,12 +14,15 @@ from app.schemas.ai import (
     AiAgentConfigResponse,
     AiChatRequest,
     AiChatResponse,
+    AiCompletionRequest,
+    AiCompletionResponse,
     AiToolExecuteRequest,
     AiToolExecuteResponse,
 )
 from app.services.agentic_ai import get_agent_config, run_agentic_loop
 from app.services.ai_api_catalog import get_available_api_docs
 from app.services.ai_tools import ToolExecutionContext, execute_agent_tool
+import app.services.ollama as ollama_svc
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -77,6 +80,16 @@ async def ai_tools_execute(
         return AiToolExecuteResponse(tool_name=body.tool_name, ok=True, result=result)
     except ValueError as exc:
         return AiToolExecuteResponse(tool_name=body.tool_name, ok=False, error=str(exc))
+
+
+@router.post("/chat/completion", response_model=AiCompletionResponse)
+async def ai_chat_completion(
+    body: AiCompletionRequest,
+    _: None = Depends(rate_limit_ai_chat),
+):
+    messages = [{"role": m.role, "content": m.content} for m in body.messages]
+    content = await ollama_svc.chat(messages)
+    return AiCompletionResponse(content=content)
 
 
 @router.post("/chat", response_model=AiChatResponse)
