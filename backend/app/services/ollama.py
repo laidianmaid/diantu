@@ -7,6 +7,7 @@ async def chat(messages: list[dict]) -> str:
     payload = {
         "model": settings.ollama_model,
         "messages": messages,
+        "think": False,
         "stream": False,
     }
     async with httpx.AsyncClient(timeout=60) as client:

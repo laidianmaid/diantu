@@ -43,10 +43,14 @@ export const WLLAMA_CONFIG_PATHS = {
 export const EDGE_MODEL_LOAD_PARAMS = {
   n_batch: 128,
   n_ctx: 4096,
+  reasoning: false,
+  reasoning_budget_tokens: 0,
 }
 
 export const EDGE_MODEL_CHAT_PARAMS = {
   max_tokens: 512,
   temperature: 0.2,
   top_p: 0.9,
+  reasoning: false,
+  reasoning_budget_tokens: 0,
 }
