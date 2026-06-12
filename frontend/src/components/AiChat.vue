@@ -31,7 +31,7 @@
 
     <div
       v-if="reply"
-      class="px-3 py-2 text-sm text-gray-700 max-h-32 overflow-y-auto border-b border-gray-100 whitespace-pre-wrap"
+      class="px-3 py-2 text-sm text-gray-700 max-h-[50vh] overflow-y-auto border-b border-gray-100 whitespace-pre-wrap"
     >
       <div v-if="replySourceLabel" class="mb-1 text-[11px] text-gray-400">{{ replySourceLabel }}</div>
       {{ reply }}
