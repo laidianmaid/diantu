@@ -61,6 +61,25 @@ function isDesktopChromium() {
   return !isMobile && (chromiumBrand || chromiumUa)
 }
 
+function isMobileChrome() {
+  const ua = navigator.userAgent || ''
+  return /Android/i.test(ua) && /(Chrome|Chromium)\/\d+/i.test(ua) && !/OPR\/\d+/i.test(ua)
+}
+
+function isIosSafari() {
+  const ua = navigator.userAgent || ''
+  return /(iPhone|iPad)/i.test(ua) &&
+    /Safari\/\d+/i.test(ua) &&
+    !/(CriOS|FxiOS|OPiOS|EdgiOS)\/\d+/i.test(ua)
+}
+
+function unsupportedBrowserDetail() {
+  const ua = navigator.userAgent || ''
+  if (/Android/i.test(ua)) return '安卓设备请使用 Chrome 浏览器以启用浏览器端 AI，当前正在使用远程模型。'
+  if (/(iPhone|iPad)/i.test(ua)) return 'iPhone/iPad 请使用 Safari 或 Chrome 浏览器以启用浏览器端 AI，当前正在使用远程模型。'
+  return '当前浏览器不支持浏览器端 AI，请使用 Chrome 以启用本地推理，当前正在使用远程模型。'
+}
+
 function hasConsent() {
   return localStorage.getItem(EDGE_AI_CONSENT_KEY) === 'accepted'
 }
@@ -94,9 +113,9 @@ async function detectSupport() {
       return false
     }
 
-    if (!isDesktopChromium()) {
+    if (!isDesktopChromium() && !isMobileChrome() && !isIosSafari()) {
       state.mode = 'fallback'
-      state.detail = '首版浏览器端 AI 仅支持桌面 Chromium，正在使用远程模型。'
+      state.detail = unsupportedBrowserDetail()
       return false
     }
 
