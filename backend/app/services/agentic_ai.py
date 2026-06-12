@@ -31,7 +31,7 @@ def build_system_prompt(user: User | None = None) -> str:
 2. 返回最终答案：
 {{
   "type": "final_answer",
-  "reply": "给用户看的自然语言回答。",
+  "reply": "给用户看的自然语言回答",
   "highlighted_shop_ids": [1, 2, 3]
 }}
 
