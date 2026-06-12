@@ -61,6 +61,7 @@ export const authApi = {
 
 export const aiApi = {
   chat: (message) => api.post('/ai/chat', { message }),
+  context: () => api.get('/ai/context'),
 }
 
 export default api

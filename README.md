@@ -9,7 +9,7 @@
 | 后端 | Python 3.12 · FastAPI · SQLAlchemy 2.0 |
 | 数据库 | PostgreSQL 16 + PostGIS |
 | 前端 | Vue 3 · Vite · Tailwind CSS · 高德地图 JS API |
-| AI | Ollama（本地）|
+| AI | 浏览器端 Gemma 4 E2B（WebGPU，优先） + Ollama（回退） |
 | Bot | python-telegram-bot v20 |
 | 部署 | Docker Compose |
 
@@ -59,6 +59,13 @@ AMAP_JSCODE=       # 安全密钥（jscode），仅后端代理使用，不暴�
 # Ollama AI（可选，本机需运行 ollama serve）
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=gemma3
+
+# 浏览器端 Edge AI（可选）
+# 留空时，前端自动回退到 Ollama。
+# 如需启用浏览器端 Gemma 4 E2B，请先把 3.42GB 单文件 GGUF 切成多个 <=512MB 分片，
+# 并把分片 URL 按顺序用英文逗号拼接到 VITE_EDGE_MODEL_URLS。
+VITE_EDGE_MODEL_URLS=
+VITE_EDGE_MODEL_SIZE_BYTES=3416118240
 
 # Telegram Bot（可选）
 TELEGRAM_BOT_TOKEN=
@@ -127,10 +134,54 @@ POST   /api/v1/shops/{id}/checkin         # 打卡
 GET    /api/v1/users/me
 POST   /api/v1/users/me/apikey            # 生成 API Key
 
+GET    /api/v1/ai/context                 # 浏览器端 AI 上下文
 POST   /api/v1/ai/chat                    # AI 问答
 ```
 
 完整文档见 http://localhost:8000/docs
+
+## 浏览器端 AI（WebGPU）启用方式
+
+首版浏览器端 AI 只支持**桌面 Chromium + WebGPU**。前端会优先尝试本地运行 Gemma 4 E2B；浏览器不支持、模型未就绪或推理失败时，会自动回退到 Ollama。
+
+### 为什么默认仍会回退到 Ollama
+
+你指定的模型文件：
+
+- `Huihui-gemma-4-E2B-it-qat-q4_0-unquantized-abliterated-Q4_K.gguf`
+
+体积约 **3.42GB**，而当前浏览器端 GGUF 路线存在**单文件 2GB 左右上限**。因此不能直接把这个单文件 URL 交给浏览器加载，必须先切分成多个分片。
+
+### 切分模型
+
+仓库提供了一个辅助脚本，会调用 `llama-gguf-split` 把 GGUF 切成多个分片，并打印可直接粘贴到 `.env` 的 `VITE_EDGE_MODEL_URLS=` 行：
+
+```bash
+chmod +x scripts/split-edge-model.sh
+
+scripts/split-edge-model.sh \
+  /path/to/Huihui-gemma-4-E2B-it-qat-q4_0-unquantized-abliterated-Q4_K.gguf \
+  ./frontend/public/models/gemma4-e2b \
+  https://your-domain.example/models/gemma4-e2b
+```
+
+默认按 **512MB** 切分。切分后，把脚本输出的 `VITE_EDGE_MODEL_URLS=...` 复制到 `.env`，然后重新构建前端：
+
+```bash
+docker compose up --build
+```
+
+或生产环境：
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+### 行为说明
+
+- **未配置 `VITE_EDGE_MODEL_URLS`**：前端显示原因并继续使用 Ollama。
+- **配置了分片 URL 且浏览器支持 WebGPU**：首次 AI 请求会提示下载约 3.42GB 模型，确认后预热并优先本地推理。
+- **Safari / Firefox / 移动端 / WebGPU 不可用**：自动回退到 Ollama。
 
 ## 权限
 

@@ -49,6 +49,8 @@ services:
       args:
         # 将环境中的变量传给 Docker build
         VITE_AMAP_JS_KEY: ${VITE_AMAP_JS_KEY}
+        VITE_EDGE_MODEL_URLS: ${VITE_EDGE_MODEL_URLS:-}
+        VITE_EDGE_MODEL_SIZE_BYTES: ${VITE_EDGE_MODEL_SIZE_BYTES:-3416118240}
     restart: always
 
   bot:

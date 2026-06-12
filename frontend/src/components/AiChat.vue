@@ -1,10 +1,27 @@
 <template>
   <div class="bg-white/90 backdrop-blur rounded-xl shadow-md overflow-visible relative">
-    <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-      <span class="text-base">☕</span>
-      <span class="text-sm font-medium text-gray-700">AI 妹抖店助手</span>
+    <div class="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-base">☕</span>
+        <span class="text-sm font-medium text-gray-700">AI 妹抖店助手</span>
+      </div>
+      <span class="text-[11px] text-gray-400 truncate">{{ runtimeBadge }}</span>
     </div>
-    <div v-if="reply" class="px-3 py-2 text-sm text-gray-700 max-h-32 overflow-y-auto border-b border-gray-100">{{ reply }}</div>
+
+    <div
+      v-if="runtimeState.detail"
+      class="px-3 py-2 text-xs text-gray-500 border-b border-gray-100"
+    >
+      {{ runtimeState.detail }}
+    </div>
+
+    <div
+      v-if="reply"
+      class="px-3 py-2 text-sm text-gray-700 max-h-32 overflow-y-auto border-b border-gray-100 whitespace-pre-wrap"
+    >
+      <div v-if="replySourceLabel" class="mb-1 text-[11px] text-gray-400">{{ replySourceLabel }}</div>
+      {{ reply }}
+    </div>
 
     <!-- Input row -->
     <div class="flex items-center gap-2 px-3 py-2 relative">
@@ -56,19 +73,22 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
-import { aiApi } from '../api'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useShopsStore } from '../stores/shops'
+import { useEdgeAiRuntime } from '../lib/ai/runtime'
 import { match } from 'pinyin-pro'
 
 const shopsStore = useShopsStore()
+const edgeAi = useEdgeAiRuntime()
 const inputRef = ref(null)
 const message = ref('')
 const reply = ref('')
+const replySource = ref('')
 const loading = ref(false)
 const suggestions = ref([])
 const activeIdx = ref(-1)
 const dropdownStyle = ref({})
+const runtimeState = edgeAi.state
 
 const COLOR_HEX = {
   sagegreen: '#8FBC8F', olivedrab: '#6B8E23', seagreen: '#2E8B57',
@@ -78,6 +98,25 @@ const COLOR_LABEL = {
   sagegreen: '纯素', olivedrab: '半绿半素', seagreen: '纯绿',
   salmon: '半荤半绿', hotpink: '纯荤',
 }
+
+const runtimeBadge = computed(() => {
+  switch (runtimeState.mode) {
+    case 'ready':
+      return '本地 Gemma'
+    case 'warming':
+      return runtimeState.downloadProgress ? `预热中 ${runtimeState.downloadProgress}%` : '预热中'
+    case 'consent-required':
+      return '可启用本地'
+    default:
+      return 'Ollama 回退'
+  }
+})
+
+const replySourceLabel = computed(() => {
+  if (replySource.value === 'browser') return '来源：浏览器端 Gemma 4 E2B'
+  if (replySource.value === 'ollama') return '来源：Ollama 回退'
+  return ''
+})
 
 function matchShop(shop, query) {
   if (!query) return false
@@ -156,14 +195,20 @@ async function sendAi() {
   closeSuggestions()
   loading.value = true
   try {
-    const { data } = await aiApi.chat(message.value)
+    const data = await edgeAi.chat(message.value)
     reply.value = data.reply
+    replySource.value = data.source || ''
     shopsStore.setHighlight(data.highlighted_shop_ids || [])
     message.value = ''
   } catch {
+    replySource.value = ''
     reply.value = '连接 AI 失败，请稍后再试。'
   } finally {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  edgeAi.prime()
+})
 </script>

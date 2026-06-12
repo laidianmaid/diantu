@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@wllama/wllama": "^3.4.1",
     "axios": "^1.7.9",
     "pinia": "^2.3.0",
     "pinyin-pro": "^3.28.1",
